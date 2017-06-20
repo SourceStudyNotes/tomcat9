@@ -1,0 +1,8 @@
+/tomcat.iml
+*.class
+target/*
+.idea/*
+output/logs/*
+output/work/*
+output/webapps/ROOT/*
+bestsign-sdk-logs
