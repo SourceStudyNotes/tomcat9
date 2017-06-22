@@ -182,7 +182,6 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
 
     @Override
     public final SocketState dispatch(SocketEvent status) {
-
         if (status == SocketEvent.OPEN_WRITE && response.getWriteListener() != null) {
             asyncStateMachine.asyncOperation();
             try {
@@ -238,7 +237,7 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
         if (getErrorState().isError()) {
             request.updateCounters();
             return SocketState.CLOSED;
-        } else if (isAsync()) {
+        } else if (isAsync()) {//AsyncState.DISPATCHED状态下isAsync为false
             return SocketState.LONG;
         } else {
             request.updateCounters();

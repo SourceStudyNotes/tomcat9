@@ -44,9 +44,12 @@ org.apache.coyote.http11.AbstractHttp11Processor.prepareRequest
 
 
 
-异步处理:
-    ActionCode.DISPATCH_EXECUTE
-    ActionCode.ASYNC_DISPATCH
+
+
+
+待优化点
+        1.AsyncTimeout超时处理，现有方案是通过循环处理
+        2.Poller.timeout通过遍历keys查看是否有超时
 
 
 

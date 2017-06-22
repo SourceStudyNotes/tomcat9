@@ -955,6 +955,7 @@ public class NioEndpoint extends AbstractJsseEndpoint<NioChannel,SocketChannel> 
                 // See https://bz.apache.org/bugzilla/show_bug.cgi?id=57943
                 log.warn(sm.getString("endpoint.nio.timeoutCme"), cme);
             }
+            //不同时间加入的连接，使用一个时间段做处理，会有超时不准确的问题和时间轮那种动态调整的还是不一样。
             long prevExp = nextExpiration; //for logging purposes only
             nextExpiration = System.currentTimeMillis() +
                     socketProperties.getTimeoutInterval();
