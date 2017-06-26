@@ -181,8 +181,9 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
 
 
     @Override
-    public final SocketState dispatch(SocketEvent status) {
-        if (status == SocketEvent.OPEN_WRITE && response.getWriteListener() != null) {
+    public final SocketState dispatch(SocketEvent socketEvent) {
+        //更新状态机
+        if (socketEvent == SocketEvent.OPEN_WRITE && response.getWriteListener() != null) {
             asyncStateMachine.asyncOperation();
             try {
                 if (flushBufferedWrite()) {
@@ -192,12 +193,12 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
                 if (getLog().isDebugEnabled()) {
                     getLog().debug("Unable to write async data.", ioe);
                 }
-                status = SocketEvent.ERROR;
+                socketEvent = SocketEvent.ERROR;
                 request.setAttribute(RequestDispatcher.ERROR_EXCEPTION, ioe);
             }
-        } else if (status == SocketEvent.OPEN_READ && request.getReadListener() != null) {
-            dispatchNonBlockingRead();
-        } else if (status == SocketEvent.ERROR) {
+        } else if (socketEvent == SocketEvent.OPEN_READ && request.getReadListener() != null) {
+            dispatchNonBlockingRead();// asyncStateMachine.asyncOperation()
+        } else if (socketEvent == SocketEvent.ERROR) {
             // An I/O error occurred on a non-container thread. This includes:
             // - read/write timeouts fired by the Poller (NIO & APR)
             // - completion handler failures in NIO2
@@ -221,7 +222,8 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
         RequestInfo rp = request.getRequestProcessor();
         try {
             rp.setStage(org.apache.coyote.Constants.STAGE_SERVICE);
-            if (!getAdapter().asyncDispatch(request, response, status)) {
+            //调用读写监听等逻辑
+            if (!getAdapter().asyncDispatch(request, response, socketEvent)) {
                 setErrorState(ErrorState.CLOSE_NOW, null);
             }
         } catch (InterruptedIOException e) {

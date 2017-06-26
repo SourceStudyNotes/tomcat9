@@ -904,9 +904,9 @@ public class NioEndpoint extends AbstractJsseEndpoint<NioChannel,SocketChannel> 
             // timeouts on every loop of the Poller since that would create too
             // much load and timeouts can afford to wait a few seconds.
             // However, do process timeouts if any of the following are true:
-            // - the selector simply timed out (suggests there isn't much load)
-            // - the nextExpiration time has passed
-            // - the server socket is being closed
+            // 1.the selector simply timed out (suggests there isn't much load)
+            // 2.the nextExpiration time has passed
+            // 3.the server socket is being closed
             if (nextExpiration > 0 && (keyCount > 0 || hasEvents) && (now < nextExpiration) && !close) {
                 return;
             }
