@@ -403,7 +403,9 @@ public abstract class AbstractEndpoint<S,U> {
      * is 100.
      */
     private int acceptCount = 100;
-    public void setAcceptCount(int acceptCount) { if (acceptCount > 0) this.acceptCount = acceptCount; }
+    public void setAcceptCount(int acceptCount) {
+        if (acceptCount > 0) this.acceptCount = acceptCount;
+    }
     public int getAcceptCount() { return acceptCount; }
 
     /**
@@ -909,6 +911,7 @@ public abstract class AbstractEndpoint<S,U> {
             }
             Executor executor = getExecutor();
             if (dispatch && executor != null) {
+                TimeUnit.SECONDS.sleep(10000);
                 executor.execute(sc);
             } else {
                 sc.run();

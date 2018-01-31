@@ -4,5 +4,5 @@ target/*
 .idea/*
 output/logs/*
 output/work/*
-output/webapps/ROOT/*
+output/webapps/*
 bestsign-sdk-logs
