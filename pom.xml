@@ -4,16 +4,16 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.apache</groupId>
     <artifactId>tomcat</artifactId>
-    <version>9.0.0.M21</version>
+    <version>9.0.4</version>
     <packaging>pom</packaging>
-    <name>Tomcat-9.0.0.M21</name>
+    <name>Tomcat-9.0.4</name>
     <url>http://maven.apache.org</url>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.build.timestamp.format>yyyyMMdd HH:mm:ss</maven.build.timestamp.format>
-        <VERSION>9.0.0.M21</VERSION>
-        <VERSION_NUMBER>9.0.0.M21</VERSION_NUMBER>
+        <VERSION>9.0.9.0.4</VERSION>
+        <VERSION_NUMBER>9.0.9.0.4</VERSION_NUMBER>
         <VERSION_BUILT>${maven.build.timestamp}</VERSION_BUILT>
     </properties>
 
