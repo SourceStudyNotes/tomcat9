@@ -1,5 +1,6 @@
-/tomcat.iml
+tomcat-*.iml
 *.class
+tomcat.iml
 */target/*
 .idea/*
 

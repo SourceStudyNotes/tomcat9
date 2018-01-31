@@ -9,8 +9,8 @@
         <groupId>org.apache</groupId>
         <version>9.0.4</version>
     </parent>
-    <artifactId>tomcat-all</artifactId>
-    <name>tomcat-all</name>
+    <artifactId>tomcat-server</artifactId>
+    <name>tomcat-server</name>
     <packaging>jar</packaging>
 
 
