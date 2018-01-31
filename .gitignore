@@ -4,5 +4,4 @@
 .idea/*
 */output/logs/*
 */output/work/*
-*/output/webapps/*
-bestsign-sdk-logs
+*/webapps/*
