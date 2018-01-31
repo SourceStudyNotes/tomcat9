@@ -23,7 +23,6 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.Principal;
 import java.security.cert.X509Certificate;
@@ -54,7 +53,6 @@ import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
 import org.apache.tomcat.util.IntrospectionUtils;
 import org.apache.tomcat.util.buf.B2CConverter;
-import org.apache.tomcat.util.buf.HexUtils;
 import org.apache.tomcat.util.descriptor.web.SecurityCollection;
 import org.apache.tomcat.util.descriptor.web.SecurityConstraint;
 import org.apache.tomcat.util.res.StringManager;
@@ -191,9 +189,7 @@ public abstract class RealmBase extends LifecycleMBeanBase implements Realm {
      */
     @Override
     public Container getContainer() {
-
-        return (container);
-
+        return container;
     }
 
 
@@ -446,7 +442,7 @@ public abstract class RealmBase extends LifecycleMBeanBase implements Realm {
     public Principal authenticate(X509Certificate certs[]) {
 
         if ((certs == null) || (certs.length < 1))
-            return (null);
+            return null;
 
         // Check the validity of each certificate in the chain
         if (log.isDebugEnabled())
@@ -461,14 +457,13 @@ public abstract class RealmBase extends LifecycleMBeanBase implements Realm {
                 } catch (Exception e) {
                     if (log.isDebugEnabled())
                         log.debug("  Validity exception", e);
-                    return (null);
+                    return null;
                 }
             }
         }
 
         // Check the existence of the client Principal in our database
-        return (getPrincipal(certs[0]));
-
+        return getPrincipal(certs[0]);
     }
 
 
@@ -546,7 +541,7 @@ public abstract class RealmBase extends LifecycleMBeanBase implements Realm {
         if ((constraints == null) || (constraints.length == 0)) {
             if (log.isDebugEnabled())
                 log.debug("  No applicable constraints defined");
-            return (null);
+            return null;
         }
 
         // Check each defined security constraint
@@ -1209,7 +1204,7 @@ public abstract class RealmBase extends LifecycleMBeanBase implements Realm {
         if(log.isDebugEnabled())
             log.debug(sm.getString("realmBase.gotX509Username", username));
 
-        return(getPrincipal(username));
+        return getPrincipal(username);
     }
 
 
@@ -1258,44 +1253,6 @@ public abstract class RealmBase extends LifecycleMBeanBase implements Realm {
 
 
     // --------------------------------------------------------- Static Methods
-
-    /**
-     * Digest password using the algorithm specified and convert the result to a
-     * corresponding hex string.
-     *
-     * @param credentials Password or other credentials to use in authenticating
-     *                    this username
-     * @param algorithm   Algorithm used to do the digest
-     * @param encoding    Character encoding of the string to digest
-     *
-     * @return The digested credentials as a hex string or the original plain
-     *         text credentials if an error occurs.
-     */
-    public static final String Digest(String credentials, String algorithm,
-                                      String encoding) {
-
-        try {
-            // Obtain a new message digest with "digest" encryption
-            MessageDigest md =
-                (MessageDigest) MessageDigest.getInstance(algorithm).clone();
-
-            // encode the credentials
-            // Should use the digestEncoding, but that's not a static field
-            if (encoding == null) {
-                md.update(credentials.getBytes());
-            } else {
-                md.update(credentials.getBytes(encoding));
-            }
-
-            // Digest the credentials and return as hexadecimal
-            return (HexUtils.toHexString(md.digest()));
-        } catch(Exception ex) {
-            log.error(ex);
-            return credentials;
-        }
-
-    }
-
 
     /**
      * Generate a stored credential string for the given password and associated
@@ -1405,11 +1362,11 @@ public abstract class RealmBase extends LifecycleMBeanBase implements Realm {
         if (handlerClassName == null) {
             for (Class<? extends DigestCredentialHandlerBase> clazz : credentialHandlerClasses) {
                 try {
-                    handler = clazz.newInstance();
+                    handler = clazz.getConstructor().newInstance();
                     if (IntrospectionUtils.setProperty(handler, "algorithm", algorithm)) {
                         break;
                     }
-                } catch (InstantiationException | IllegalAccessException e) {
+                } catch (ReflectiveOperationException e) {
                     // This isn't good.
                     throw new RuntimeException(e);
                 }
@@ -1417,10 +1374,9 @@ public abstract class RealmBase extends LifecycleMBeanBase implements Realm {
         } else {
             try {
                 Class<?> clazz = Class.forName(handlerClassName);
-                handler = (DigestCredentialHandlerBase) clazz.newInstance();
+                handler = (DigestCredentialHandlerBase) clazz.getConstructor().newInstance();
                 IntrospectionUtils.setProperty(handler, "algorithm", algorithm);
-            } catch (InstantiationException | IllegalAccessException
-                    | ClassNotFoundException e) {
+            } catch (ReflectiveOperationException e) {
                 throw new RuntimeException(e);
             }
         }
@@ -1551,13 +1507,9 @@ public abstract class RealmBase extends LifecycleMBeanBase implements Realm {
         try {
             @SuppressWarnings("unchecked")
             Class<? extends X509UsernameRetriever> clazz = (Class<? extends X509UsernameRetriever>)Class.forName(className);
-            return clazz.newInstance();
-        } catch (ClassNotFoundException e) {
-            throw new LifecycleException(sm.getString("realmBase.createUsernameRetriever.ClassNotFoundException", className), e);
-        } catch (InstantiationException e) {
-            throw new LifecycleException(sm.getString("realmBase.createUsernameRetriever.InstantiationException", className), e);
-        } catch (IllegalAccessException e) {
-            throw new LifecycleException(sm.getString("realmBase.createUsernameRetriever.IllegalAccessException", className), e);
+            return clazz.getConstructor().newInstance();
+        } catch (ReflectiveOperationException e) {
+            throw new LifecycleException(sm.getString("realmBase.createUsernameRetriever.newInstance", className), e);
         } catch (ClassCastException e) {
             throw new LifecycleException(sm.getString("realmBase.createUsernameRetriever.ClassCastException", className), e);
         }

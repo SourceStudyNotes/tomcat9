@@ -240,8 +240,11 @@ public class HpackDecoder {
         if (index <= Hpack.STATIC_TABLE_LENGTH) {
             return Hpack.STATIC_TABLE[index].name;
         } else {
-            if (index >= Hpack.STATIC_TABLE_LENGTH + filledTableSlots) {
-                throw new HpackException();
+            // index is 1 based
+            if (index > Hpack.STATIC_TABLE_LENGTH + filledTableSlots) {
+                throw new HpackException(sm.getString("hpackdecoder.headerTableIndexInvalid",
+                        Integer.valueOf(index), Integer.valueOf(Hpack.STATIC_TABLE_LENGTH),
+                        Integer.valueOf(filledTableSlots)));
             }
             int adjustedIndex = getRealIndex(index - Hpack.STATIC_TABLE_LENGTH);
             Hpack.HeaderField res = headerTable[adjustedIndex];
@@ -354,6 +357,16 @@ public class HpackDecoder {
          *                        with the HTTP/2 specification
          */
         void emitHeader(String name, String value) throws HpackException;
+
+        /**
+         * Inform the recipient of the headers that a stream error needs to be
+         * triggered using the given message when {@link #validateHeaders()} is
+         * called. This is used when the Parser becomes aware of an error that
+         * is not visible to the recipient.
+         *
+         * @param streamException The exception to use when resetting the stream
+         */
+        void setHeaderException(StreamException streamException);
 
         /**
          * Are the headers pass to the recipient so far valid? The decoder needs

@@ -33,10 +33,14 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 
+import javax.management.MalformedObjectNameException;
+import javax.management.ObjectName;
+
 import org.apache.juli.logging.Log;
 import org.apache.tomcat.util.ExceptionUtils;
 import org.apache.tomcat.util.IntrospectionUtils;
 import org.apache.tomcat.util.collections.SynchronizedStack;
+import org.apache.tomcat.util.modeler.Registry;
 import org.apache.tomcat.util.net.Acceptor.AcceptorState;
 import org.apache.tomcat.util.res.StringManager;
 import org.apache.tomcat.util.threads.LimitLatch;
@@ -170,6 +174,8 @@ public abstract class AbstractEndpoint<S,U> {
      */
     protected SynchronizedStack<SocketProcessorBase<S>> processorCache;
 
+    private ObjectName oname = null;
+
     // ----------------------------------------------------------------- Properties
 
     private String defaultSSLHostConfigName = SSLHostConfig.DEFAULT_SSL_HOST_NAME;
@@ -182,23 +188,111 @@ public abstract class AbstractEndpoint<S,U> {
 
 
     protected ConcurrentMap<String,SSLHostConfig> sslHostConfigs = new ConcurrentHashMap<>();
+    /**
+     * Add the given SSL Host configuration.
+     *
+     * @param sslHostConfig The configuration to add
+     *
+     * @throws IllegalArgumentException If the host name is not valid or if a
+     *                                  configuration has already been provided
+     *                                  for that host
+     */
     public void addSslHostConfig(SSLHostConfig sslHostConfig) throws IllegalArgumentException {
+        addSslHostConfig(sslHostConfig, false);
+    }
+    /**
+     * Add the given SSL Host configuration, optionally replacing the existing
+     * configuration for the given host.
+     *
+     * @param sslHostConfig The configuration to add
+     * @param replace       If {@code true} replacement of an existing
+     *                      configuration is permitted, otherwise any such
+     *                      attempted replacement will trigger an exception
+     *
+     * @throws IllegalArgumentException If the host name is not valid or if a
+     *                                  configuration has already been provided
+     *                                  for that host and replacement is not
+     *                                  allowed
+     */
+    public void addSslHostConfig(SSLHostConfig sslHostConfig, boolean replace) throws IllegalArgumentException {
         String key = sslHostConfig.getHostName();
         if (key == null || key.length() == 0) {
             throw new IllegalArgumentException(sm.getString("endpoint.noSslHostName"));
         }
-        sslHostConfig.setConfigType(getSslConfigType());
         if (bindState != BindState.UNBOUND && isSSLEnabled()) {
+            sslHostConfig.setConfigType(getSslConfigType());
             try {
                 createSSLContext(sslHostConfig);
             } catch (Exception e) {
                 throw new IllegalArgumentException(e);
             }
         }
-        SSLHostConfig duplicate = sslHostConfigs.putIfAbsent(key, sslHostConfig);
-        if (duplicate != null) {
-            releaseSSLContext(sslHostConfig);
-            throw new IllegalArgumentException(sm.getString("endpoint.duplicateSslHostName", key));
+        if (replace) {
+            SSLHostConfig previous = sslHostConfigs.put(key, sslHostConfig);
+            if (previous != null) {
+                unregisterJmx(sslHostConfig);
+            }
+            registerJmx(sslHostConfig);
+
+            // Do not release any SSLContexts associated with a replaced
+            // SSLHostConfig. They may still be in used by existing connections
+            // and releasing them would break the connection at best. Let GC
+            // handle the clean up.
+        } else {
+            SSLHostConfig duplicate = sslHostConfigs.putIfAbsent(key, sslHostConfig);
+            if (duplicate != null) {
+                releaseSSLContext(sslHostConfig);
+                throw new IllegalArgumentException(sm.getString("endpoint.duplicateSslHostName", key));
+            }
+            registerJmx(sslHostConfig);
+        }
+    }
+    /**
+     * Removes the SSL host configuration for the given host name, if such a
+     * configuration exists.
+     *
+     * @param hostName  The host name associated with the SSL host configuration
+     *                  to remove
+     *
+     * @return  The SSL host configuration that was removed, if any
+     */
+    public SSLHostConfig removeSslHostConfig(String hostName) {
+        if (hostName == null) {
+            return null;
+        }
+        // Host names are case insensitive
+        if (hostName.equalsIgnoreCase(getDefaultSSLHostConfigName())) {
+            throw new IllegalArgumentException(
+                    sm.getString("endpoint.removeDefaultSslHostConfig", hostName));
+        }
+        SSLHostConfig sslHostConfig = sslHostConfigs.remove(hostName);
+        unregisterJmx(sslHostConfig);
+        return sslHostConfig;
+    }
+    /**
+     * Re-read the configuration files for the SSL host and replace the existing
+     * SSL configuration with the updated settings. Note this replacement will
+     * happen even if the settings remain unchanged.
+     *
+     * @param hostName The SSL host for which the configuration should be
+     *                 reloaded. This must match a current SSL host
+     */
+    public void reloadSslHostConfig(String hostName) {
+        SSLHostConfig sslHostConfig = sslHostConfigs.get(hostName);
+        if (sslHostConfig == null) {
+            throw new IllegalArgumentException(
+                    sm.getString("endpoint.unknownSslHostName", hostName));
+        }
+        addSslHostConfig(sslHostConfig, true);
+    }
+    /**
+     * Re-read the configuration files for all SSL hosts and replace the
+     * existing SSL configuration with the updated settings. Note this
+     * replacement will happen even if the settings remain unchanged.
+     */
+    public void reloadSslHostConfigs() {
+        for (String hostName : sslHostConfigs.keySet()) {
+            reloadSslHostConfig(hostName);
         }
     }
     public SSLHostConfig[] findSslHostConfigs() {
@@ -403,9 +497,7 @@ public abstract class AbstractEndpoint<S,U> {
      * is 100.
      */
     private int acceptCount = 100;
-    public void setAcceptCount(int acceptCount) {
-        if (acceptCount > 0) this.acceptCount = acceptCount;
-    }
+    public void setAcceptCount(int acceptCount) { if (acceptCount > 0) this.acceptCount = acceptCount; }
     public int getAcceptCount() { return acceptCount; }
 
     /**
@@ -559,17 +651,6 @@ public abstract class AbstractEndpoint<S,U> {
         this.maxKeepAliveRequests = maxKeepAliveRequests;
     }
 
-    /**
-     * The maximum number of headers in a request that are allowed.
-     * 100 by default. A value of less than 0 means no limit.
-     */
-    private int maxHeaderCount = 100; // as in Apache HTTPD server
-    public int getMaxHeaderCount() {
-        return maxHeaderCount;
-    }
-    public void setMaxHeaderCount(int maxHeaderCount) {
-        this.maxHeaderCount = maxHeaderCount;
-    }
 
     /**
      * Name of the thread pool, which will be used for naming child threads.
@@ -577,6 +658,15 @@ public abstract class AbstractEndpoint<S,U> {
     private String name = "TP";
     public void setName(String name) { this.name = name; }
     public String getName() { return name; }
+
+
+    /**
+     * Name of domain to use for JMX registration.
+     */
+    private String domain;
+    public void setDomain(String domain) { this.domain = domain; }
+    public String getDomain() { return domain; }
+
 
     /**
      * The default is true - the created threads will be
@@ -828,9 +918,10 @@ public abstract class AbstractEndpoint<S,U> {
                     waitLeft -= 50;
                 }
             }
-        } catch(Exception e) {
+        } catch(Throwable t) {
+            ExceptionUtils.handleThrowable(t);
             if (getLog().isDebugEnabled()) {
-                getLog().debug(sm.getString("endpoint.debug.unlock.fail", "" + getPort()), e);
+                getLog().debug(sm.getString("endpoint.debug.unlock.fail", "" + getPort()), t);
             }
         }
     }
@@ -911,7 +1002,6 @@ public abstract class AbstractEndpoint<S,U> {
             }
             Executor executor = getExecutor();
             if (dispatch && executor != null) {
-                TimeUnit.SECONDS.sleep(10000);
                 executor.execute(sc);
             } else {
                 sc.run();
@@ -952,6 +1042,62 @@ public abstract class AbstractEndpoint<S,U> {
         if (bindOnInit) {
             bind();
             bindState = BindState.BOUND_ON_INIT;
+        }
+        if (this.domain != null) {
+            // Register endpoint (as ThreadPool - historical name)
+            oname = new ObjectName(domain + ":type=ThreadPool,name=\"" + getName() + "\"");
+            Registry.getRegistry(null, null).registerComponent(this, oname, null);
+
+            for (SSLHostConfig sslHostConfig : findSslHostConfigs()) {
+                registerJmx(sslHostConfig);
+            }
+        }
+    }
+
+
+    private void registerJmx(SSLHostConfig sslHostConfig) {
+        ObjectName sslOname = null;
+        try {
+            sslOname = new ObjectName(domain + ":type=SSLHostConfig,ThreadPool=" +
+                    getName() + ",name=" + ObjectName.quote(sslHostConfig.getHostName()));
+            sslHostConfig.setObjectName(sslOname);
+            try {
+                Registry.getRegistry(null, null).registerComponent(sslHostConfig, sslOname, null);
+            } catch (Exception e) {
+                getLog().warn(sm.getString("endpoint.jmxRegistrationFailed", sslOname), e);
+            }
+        } catch (MalformedObjectNameException e) {
+            getLog().warn(sm.getString("endpoint.invalidJmxNameSslHost",
+                    sslHostConfig.getHostName()), e);
+        }
+
+        for (SSLHostConfigCertificate sslHostConfigCert : sslHostConfig.getCertificates()) {
+            ObjectName sslCertOname = null;
+            try {
+                sslCertOname = new ObjectName(domain +
+                        ":type=SSLHostConfigCertificate,ThreadPool=" + getName() +
+                        ",Host=" + ObjectName.quote(sslHostConfig.getHostName()) +
+                        ",name=" + sslHostConfigCert.getType());
+                sslHostConfigCert.setObjectName(sslCertOname);
+                try {
+                    Registry.getRegistry(null, null).registerComponent(
+                            sslHostConfigCert, sslCertOname, null);
+                } catch (Exception e) {
+                    getLog().warn(sm.getString("endpoint.jmxRegistrationFailed", sslCertOname), e);
+                }
+            } catch (MalformedObjectNameException e) {
+                getLog().warn(sm.getString("endpoint.invalidJmxNameSslHostCert",
+                        sslHostConfig.getHostName(), sslHostConfigCert.getType()), e);
+            }
+        }
+    }
+
+
+    private void unregisterJmx(SSLHostConfig sslHostConfig) {
+        Registry registry = Registry.getRegistry(null, null);
+        registry.unregisterComponent(sslHostConfig.getObjectName());
+        for (SSLHostConfigCertificate sslHostConfigCert : sslHostConfig.getCertificates()) {
+            registry.unregisterComponent(sslHostConfigCert.getObjectName());
         }
     }
 
@@ -1018,7 +1164,13 @@ public abstract class AbstractEndpoint<S,U> {
             unbind();
             bindState = BindState.UNBOUND;
         }
+        Registry registry = Registry.getRegistry(null, null);
+        registry.unregisterComponent(oname);
+        for (SSLHostConfig sslHostConfig : findSslHostConfigs()) {
+            unregisterJmx(sslHostConfig);
+        }
     }
+
 
     protected abstract Log getLog();
 

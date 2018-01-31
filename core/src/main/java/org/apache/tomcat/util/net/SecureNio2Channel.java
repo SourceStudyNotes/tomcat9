@@ -300,13 +300,20 @@ public class SecureNio2Channel extends Nio2Channel  {
                         if (handshakeStatus == HandshakeStatus.NEED_TASK)
                             handshakeStatus = tasks();
                     } else if (handshake.getStatus() == Status.BUFFER_UNDERFLOW) {
-                        //read more data, reregister for OP_READ
+                        if (netInBuffer.position() == netInBuffer.limit()) {
+                            //clear the buffer if we have emptied it out on data
+                            netInBuffer.clear();
+                        }
+                        //read more data
                         if (async) {
                             sc.read(netInBuffer, socket, handshakeReadCompletionHandler);
                         } else {
                             try {
-                                sc.read(netInBuffer).get(endpoint.getConnectionTimeout(),
-                                        TimeUnit.MILLISECONDS);
+                                int read = sc.read(netInBuffer).get(endpoint.getConnectionTimeout(),
+                                        TimeUnit.MILLISECONDS).intValue();
+                                if (read == -1) {
+                                    throw new EOFException();
+                                }
                             } catch (InterruptedException | ExecutionException | TimeoutException e) {
                                 throw new IOException(sm.getString("channel.nio.ssl.handshakeError"));
                             }
@@ -381,6 +388,12 @@ public class SecureNio2Channel extends Nio2Channel  {
             hostName = endpoint.getDefaultSSLHostConfigName();
             clientRequestedCiphers = Collections.emptyList();
             break;
+        case NON_SECURE:
+            netOutBuffer.clear();
+            netOutBuffer.put(TLSClientHelloExtractor.USE_TLS_RESPONSE);
+            netOutBuffer.flip();
+            flush();
+            throw new IOException(sm.getString("channel.nio.ssl.foundHttp"));
         }
 
         if (log.isDebugEnabled()) {
@@ -449,8 +462,10 @@ public class SecureNio2Channel extends Nio2Channel  {
                 }
             }
         } catch (IOException x) {
+            closeSilently();
             throw x;
         } catch (Exception cx) {
+            closeSilently();
             IOException x = new IOException(cx);
             throw x;
         }
@@ -494,10 +509,6 @@ public class SecureNio2Channel extends Nio2Channel  {
      * @throws IOException An IO error occurred
      */
     protected SSLEngineResult handshakeUnwrap() throws IOException {
-        if (netInBuffer.position() == netInBuffer.limit()) {
-            //clear the buffer if we have emptied it out on data
-            netInBuffer.clear();
-        }
         SSLEngineResult result;
         boolean cont = false;
         //loop while we can perform pure SSLEngine data
@@ -576,17 +587,30 @@ public class SecureNio2Channel extends Nio2Channel  {
         closed = (!netOutBuffer.hasRemaining() && (handshake.getHandshakeStatus() != HandshakeStatus.NEED_WRAP));
     }
 
+
     @Override
     public void close(boolean force) throws IOException {
         try {
             close();
         } finally {
-            if ( force || closed ) {
+            if (force || closed) {
                 closed = true;
                 sc.close();
             }
         }
     }
+
+
+    private void closeSilently() {
+        try {
+            close(true);
+        } catch (IOException ioe) {
+            // This is expected - swallowing the exception is the reason this
+            // method exists. Log at debug in case someone is interested.
+            log.debug(sm.getString("channel.nio.ssl.closeSilentError"), ioe);
+        }
+    }
+
 
     private class FutureRead implements Future<Integer> {
         private ByteBuffer dst;
@@ -1115,10 +1139,4 @@ public class SecureNio2Channel extends Nio2Channel  {
     public ByteBuffer getEmptyBuf() {
         return emptyBuf;
     }
-
-    @Override
-    public AsynchronousSocketChannel getIOChannel() {
-        return sc;
-    }
-
 }

@@ -24,6 +24,8 @@ import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.util.Collection;
 import java.util.Locale;
+import java.util.Map;
+import java.util.function.Supplier;
 
 import javax.servlet.ServletOutputStream;
 import javax.servlet.http.Cookie;
@@ -209,7 +211,7 @@ public class ResponseFacade implements HttpServletResponse {
         if (isFinished()) {
             response.setSuspended(true);
         }
-        return (sos);
+        return sos;
 
     }
 
@@ -226,7 +228,7 @@ public class ResponseFacade implements HttpServletResponse {
         if (isFinished()) {
             response.setSuspended(true);
         }
-        return (writer);
+        return writer;
 
     }
 
@@ -333,7 +335,7 @@ public class ResponseFacade implements HttpServletResponse {
                             sm.getString("responseFacade.nullResponse"));
         }
 
-        return (response.isAppCommitted());
+        return response.isAppCommitted();
     }
 
 
@@ -639,5 +641,17 @@ public class ResponseFacade implements HttpServletResponse {
     @Override
     public Collection<String> getHeaders(String name) {
         return response.getHeaders(name);
+    }
+
+
+    @Override
+    public void setTrailerFields(Supplier<Map<String, String>> supplier) {
+        response.setTrailerFields(supplier);
+    }
+
+
+    @Override
+    public Supplier<Map<String, String>> getTrailerFields() {
+        return response.getTrailerFields();
     }
 }

@@ -24,7 +24,7 @@ import javax.servlet.annotation.WebServlet;
  *
  * @since 4.0
  */
-public interface ServletMapping {
+public interface HttpServletMapping {
 
     /**
      * @return The value that was matched or the empty String if not known.
@@ -47,7 +47,7 @@ public interface ServletMapping {
     String getServletName();
 
     /**
-     * @return The type of match ({@link MappingMatch#UNKNOWN} if not known)
+     * @return The type of match ({@code null} if not known)
      */
     MappingMatch getMappingMatch();
 }

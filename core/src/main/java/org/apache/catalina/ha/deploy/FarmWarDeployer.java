@@ -700,9 +700,7 @@ public class FarmWarDeployer extends ClusterListener
      * @return the frequency of watcher checks.
      */
     public int getProcessDeployFrequency() {
-
-        return (this.processDeployFrequency);
-
+        return this.processDeployFrequency;
     }
 
     /**
@@ -748,7 +746,7 @@ public class FarmWarDeployer extends ClusterListener
         }
 
         try (java.io.FileInputStream is = new java.io.FileInputStream(from);
-                java.io.FileOutputStream os = new java.io.FileOutputStream(to, false);) {
+                java.io.FileOutputStream os = new java.io.FileOutputStream(to, false)) {
             byte[] buf = new byte[4096];
             while (true) {
                 int len = is.read(buf);

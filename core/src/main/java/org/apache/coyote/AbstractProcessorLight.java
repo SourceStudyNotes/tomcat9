@@ -16,16 +16,16 @@
  */
 package org.apache.coyote;
 
+import java.io.IOException;
+import java.util.Iterator;
+import java.util.Set;
+import java.util.concurrent.CopyOnWriteArraySet;
+
 import org.apache.juli.logging.Log;
 import org.apache.tomcat.util.net.AbstractEndpoint.Handler.SocketState;
 import org.apache.tomcat.util.net.DispatchType;
 import org.apache.tomcat.util.net.SocketEvent;
 import org.apache.tomcat.util.net.SocketWrapperBase;
-
-import java.io.IOException;
-import java.util.Iterator;
-import java.util.Set;
-import java.util.concurrent.CopyOnWriteArraySet;
 
 /**
  * This is a light-weight abstract processor implementation that is intended as
@@ -38,64 +38,55 @@ public abstract class AbstractProcessorLight implements Processor {
 
 
     @Override
-    public SocketState process(SocketWrapperBase<?> socketWrapper, SocketEvent status) throws IOException {
+    public SocketState process(SocketWrapperBase<?> socketWrapper, SocketEvent status)
+            throws IOException {
+
         SocketState state = SocketState.CLOSED;
         Iterator<DispatchType> dispatches = null;
-        Integer loopCnt=0;
         do {
-            try {
-                if (dispatches != null) {
-                    DispatchType nextDispatch = dispatches.next();
-                    state = dispatch(nextDispatch.getSocketStatus());
-                } else if (status == SocketEvent.DISCONNECT) {
-                    // Do nothing here, just wait for it to get recycled
-                } else if (isAsync() || isUpgrade() || state == SocketState.ASYNC_END) {
-                    state = dispatch(status);//没有返回SocketState.ASYNC_END
-                    if (state == SocketState.OPEN) {
-                        // There may be pipe-lined data to read. If the data isn't
-                        // processed now, execution will exit this loop and call
-                        // release() which will recycle the processor (and input
-                        // buffer) deleting any pipe-lined data. To avoid this,
-                        // process it now.
-                        state = service(socketWrapper);//没有返回SocketState.ASYNC_END
-                    }
-                } else if (status == SocketEvent.OPEN_WRITE) {
-                    // Extra write event likely after async, ignore
-                    state = SocketState.LONG;
-                } else if (status == SocketEvent.OPEN_READ) {
-                    state = service(socketWrapper);//没有返回SocketState.ASYNC_END
-                } else {
-                    // Default to closing the socket if the SocketEvent passed in
-                    // is not consistent with the current state of the Processor
-                    state = SocketState.CLOSED;
+            if (dispatches != null) {
+                DispatchType nextDispatch = dispatches.next();
+                state = dispatch(nextDispatch.getSocketStatus());
+            } else if (status == SocketEvent.DISCONNECT) {
+                // Do nothing here, just wait for it to get recycled
+            } else if (isAsync() || isUpgrade() || state == SocketState.ASYNC_END) {
+                state = dispatch(status);
+                if (state == SocketState.OPEN) {
+                    // There may be pipe-lined data to read. If the data isn't
+                    // processed now, execution will exit this loop and call
+                    // release() which will recycle the processor (and input
+                    // buffer) deleting any pipe-lined data. To avoid this,
+                    // process it now.
+                    state = service(socketWrapper);
                 }
-
-
-                //连接没有关闭，并且处于异步状态，变更下一个可能的异步状态。
-                if (state != SocketState.CLOSED && isAsync()) {
-                    state = asyncPostProcess();//有可能会返回AsyncState.DISPATCHED，isAsync()为false，但是state为ASYNC_END
-                }
-                if (getLog().isDebugEnabled()) {
-                    getLog().debug("Socket: [" + socketWrapper + "], Status in: [" + status + "], State out: [" + state + "]");
-                }
-
-
-                //获取下一轮需要处理的dispatch
-                if (dispatches == null || !dispatches.hasNext()) {
-                    // Only returns non-null iterator if there are
-                    // dispatches to process.
-                    dispatches = getIteratorAndClearDispatches();
-                }
-                loopCnt++;
-            }finally {
-                getLog().info(String.format("Process.Mat-->Current status:[%s],state:[%s],dispatches:[%s],loopCnt:[%s]",status,state,dispatches,loopCnt));
+            } else if (status == SocketEvent.OPEN_WRITE) {
+                // Extra write event likely after async, ignore
+                state = SocketState.LONG;
+            } else if (status == SocketEvent.OPEN_READ){
+                state = service(socketWrapper);
+            } else {
+                // Default to closing the socket if the SocketEvent passed in
+                // is not consistent with the current state of the Processor
+                state = SocketState.CLOSED;
             }
-            /**
-             * 1.state为ASYNC_END状态；
-             * 2.连接没有关闭，并且还有dispatches要处理
-             */
-        }
-        while (state == SocketState.ASYNC_END || dispatches != null && state != SocketState.CLOSED);
+
+            if (state != SocketState.CLOSED && isAsync()) {
+                state = asyncPostProcess();
+            }
+
+            if (getLog().isDebugEnabled()) {
+                getLog().debug("Socket: [" + socketWrapper +
+                        "], Status in: [" + status +
+                        "], State out: [" + state + "]");
+            }
+
+            if (dispatches == null || !dispatches.hasNext()) {
+                // Only returns non-null iterator if there are
+                // dispatches to process.
+                dispatches = getIteratorAndClearDispatches();
+            }
+        } while (state == SocketState.ASYNC_END ||
+                dispatches != null && state != SocketState.CLOSED);
 
         return state;
     }
@@ -143,8 +134,12 @@ public abstract class AbstractProcessorLight implements Processor {
      * calls to {@link #dispatch(SocketEvent)}. Requests may be pipe-lined.
      *
      * @param socketWrapper The connection to process
-     * @return The state the caller should put the socket in when this method returns
-     * @throws IOException If an I/O error occurs during the processing of the request
+     *
+     * @return The state the caller should put the socket in when this method
+     *         returns
+     *
+     * @throws IOException If an I/O error occurs during the processing of the
+     *         request
      */
     protected abstract SocketState service(SocketWrapperBase<?> socketWrapper) throws IOException;
 
@@ -153,7 +148,6 @@ public abstract class AbstractProcessorLight implements Processor {
      * Uses currently include Servlet 3.0 Async and HTTP upgrade connections.
      * Further uses may be added in the future. These will typically start as
      * HTTP requests.
-     *
      * @param status The event to process
      * @return the socket state
      */

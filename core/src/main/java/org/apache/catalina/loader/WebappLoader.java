@@ -33,7 +33,6 @@ import javax.servlet.ServletContext;
 
 import org.apache.catalina.Context;
 import org.apache.catalina.Globals;
-import org.apache.catalina.Lifecycle;
 import org.apache.catalina.LifecycleException;
 import org.apache.catalina.LifecycleState;
 import org.apache.catalina.Loader;
@@ -224,7 +223,7 @@ public class WebappLoader extends LifecycleMBeanBase
      * @return the ClassLoader class name.
      */
     public String getLoaderClass() {
-        return (this.loaderClass);
+        return this.loaderClass;
     }
 
 
@@ -396,7 +395,7 @@ public class WebappLoader extends LifecycleMBeanBase
 
             setPermissions();
 
-            ((Lifecycle) classLoader).start();
+            classLoader.start();
 
             String contextName = context.getName();
             if (!contextName.startsWith("/")) {

@@ -260,14 +260,27 @@ public class NioBlockingSelector {
         }
 
         public boolean events() {
-            boolean result = false;
             Runnable r = null;
-            result = (events.size() > 0);
-            while ( (r = events.poll()) != null ) {
+
+            /* We only poll and run the runnable events when we start this
+             * method. Further events added to the queue later will be delayed
+             * to the next execution of this method.
+             *
+             * We do in this way, because running event from the events queue
+             * may lead the working thread to add more events to the queue (for
+             * example, the worker thread may add another RunnableAdd event when
+             * waken up by a previous RunnableAdd event who got an invalid
+             * SelectionKey). Trying to consume all the events in an increasing
+             * queue till it's empty, will make the loop hard to be terminated,
+             * which will kill a lot of time, and greatly affect performance of
+             * the poller loop.
+             */
+            int size = events.size();
+            for (int i = 0; i < size && (r = events.poll()) != null; i++) {
                 r.run();
-                result = true;
             }
-            return result;
+
+            return (size > 0);
         }
 
         @Override
@@ -328,13 +341,20 @@ public class NioBlockingSelector {
                 }
             }
             events.clear();
-            try {
-                selector.selectNow();//cancel all remaining keys
-            }catch( Exception ignore ) {
-                if (log.isDebugEnabled())log.debug("",ignore);
+            // If using a shared selector, the NioSelectorPool will also try and
+            // close the selector. Try and avoid the ClosedSelectorException
+            // although because multiple threads are involved there is always
+            // the possibility of an Exception here.
+            if (selector.isOpen()) {
+                try {
+                    // Cancels all remaining keys
+                    selector.selectNow();
+                }catch( Exception ignore ) {
+                    if (log.isDebugEnabled())log.debug("",ignore);
+                }
             }
             try {
-                selector.close();//Close the connector
+                selector.close();
             }catch( Exception ignore ) {
                 if (log.isDebugEnabled())log.debug("",ignore);
             }
@@ -375,7 +395,7 @@ public class NioBlockingSelector {
                 } catch (CancelledKeyException cx) {
                     cancel(sk, key, ops);
                 } catch (ClosedChannelException cx) {
-                    cancel(sk, key, ops);
+                    cancel(null, key, ops);
                 }
             }
         }
@@ -450,7 +470,6 @@ public class NioBlockingSelector {
                 log.warn("Possible key leak, cancelling key in the finalizer.");
                 try {key.cancel();}catch (Exception ignore){}
             }
-            key = null;
         }
     }
 }

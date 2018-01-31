@@ -26,8 +26,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletRequestWrapper;
 import javax.servlet.SessionTrackingMode;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
@@ -35,6 +33,7 @@ import javax.servlet.http.HttpSession;
 import javax.servlet.http.PushBuilder;
 
 import org.apache.catalina.Context;
+import org.apache.catalina.authenticator.AuthenticatorBase;
 import org.apache.catalina.connector.Request;
 import org.apache.catalina.util.SessionConfig;
 import org.apache.coyote.ActionCode;
@@ -72,22 +71,14 @@ public class ApplicationPushBuilder implements PushBuilder {
     private String path;
     private String queryString;
     private String sessionId;
+    private String userName;
 
 
-    public ApplicationPushBuilder(HttpServletRequest request) {
+    public ApplicationPushBuilder(Request catalinaRequest, HttpServletRequest request) {
+
         baseRequest = request;
-        // Need a reference to the CoyoteRequest in order to process the push
-        ServletRequest current = request;
-        while (current instanceof ServletRequestWrapper) {
-            current = ((ServletRequestWrapper) current).getRequest();
-        }
-        if (current instanceof Request) {
-            catalinaRequest = ((Request) current);
-            coyoteRequest = catalinaRequest.getCoyoteRequest();
-        } else {
-            throw new UnsupportedOperationException(sm.getString(
-                    "applicationPushBuilder.noCoyoteRequest", current.getClass().getName()));
-        }
+        this.catalinaRequest = catalinaRequest;
+        coyoteRequest = catalinaRequest.getCoyoteRequest();
 
         // Populate the initial list of HTTP headers
         Enumeration<String> headerNames = request.getHeaderNames();
@@ -119,7 +110,6 @@ public class ApplicationPushBuilder implements PushBuilder {
         if (request.getQueryString() != null) {
             referer.append('?');
             referer.append(request.getQueryString());
-
         }
         addHeader("referer", referer.toString());
 
@@ -167,8 +157,18 @@ public class ApplicationPushBuilder implements PushBuilder {
                 cookies.add(new Cookie(responseCookie.getName(), responseCookie.getValue()));
             }
         }
-    }
 
+        // Authentication
+        if (catalinaRequest.getPrincipal() != null) {
+            if ((session == null) || catalinaRequest.getSessionInternal(false).getPrincipal() == null
+                    || !(context.getAuthenticator() instanceof AuthenticatorBase)
+                    || !((AuthenticatorBase) context.getAuthenticator()).getCache()) {
+                // Set a username only if there is no session cache for the principal
+                userName = catalinaRequest.getPrincipal().getName();
+            }
+            setHeader("authorization", "x-push");
+        }
+    }
 
     @Override
     public PushBuilder path(String path) {
@@ -196,7 +196,7 @@ public class ApplicationPushBuilder implements PushBuilder {
     @Override
     public PushBuilder method(String method) {
         String upperMethod = method.trim().toUpperCase();
-        if (DISALLOWED_METHODS.contains(upperMethod)) {
+        if (DISALLOWED_METHODS.contains(upperMethod) || upperMethod.length() == 0) {
             throw new IllegalArgumentException(
                     sm.getString("applicationPushBuilder.methodInvalid", upperMethod));
         }
@@ -357,8 +357,15 @@ public class ApplicationPushBuilder implements PushBuilder {
         }
 
         // Cookies
-        setHeader("cookie", generateCookieHeader(cookies,
+        pushTarget.getMimeHeaders().addValue("cookie")
+            .setString(generateCookieHeader(cookies,
                 catalinaRequest.getContext().getCookieProcessor()));
+
+        // Authorization
+        if (userName != null) {
+            pushTarget.getRemoteUser().setString(userName);
+            pushTarget.setRemoteUserNeedsAuthorization(true);
+        }
 
         coyoteRequest.action(ActionCode.PUSH_REQUEST, pushTarget);
 
@@ -382,7 +389,7 @@ public class ApplicationPushBuilder implements PushBuilder {
 
         StringBuilder result = new StringBuilder(input.length());
         while (start != -1) {
-            // Found the start of a %nn sequence. Copy everything form the last
+            // Found the start of a %nn sequence. Copy everything from the last
             // end to this start to the output.
             result.append(input.substring(end, start));
             // Advance the end 3 characters: %nn
@@ -403,7 +410,7 @@ public class ApplicationPushBuilder implements PushBuilder {
     private static String decodePercentSequence(String sequence, Charset charset) {
         byte[] bytes = new byte[sequence.length()/3];
         for (int i = 0; i < bytes.length; i += 3) {
-            bytes[i] = (byte) (HexUtils.getDec(sequence.charAt(1 + 3 * i)) << 4 +
+            bytes[i] = (byte) ((HexUtils.getDec(sequence.charAt(1 + 3 * i)) << 4) +
                     HexUtils.getDec(sequence.charAt(2 + 3 * i)));
         }
 

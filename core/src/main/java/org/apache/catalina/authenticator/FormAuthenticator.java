@@ -652,21 +652,24 @@ public class FormAuthenticator
         // May need to acknowledge a 100-continue expectation
         request.getResponse().sendAcknowledgement();
 
-        ByteChunk body = new ByteChunk();
-        body.setLimit(request.getConnector().getMaxSavePostSize());
+        int maxSavePostSize = request.getConnector().getMaxSavePostSize();
+        if (maxSavePostSize != 0) {
+            ByteChunk body = new ByteChunk();
+            body.setLimit(maxSavePostSize);
 
-        byte[] buffer = new byte[4096];
-        int bytesRead;
-        InputStream is = request.getInputStream();
+            byte[] buffer = new byte[4096];
+            int bytesRead;
+            InputStream is = request.getInputStream();
 
-        while ( (bytesRead = is.read(buffer) ) >= 0) {
-            body.append(buffer, 0, bytesRead);
-        }
+            while ( (bytesRead = is.read(buffer) ) >= 0) {
+                body.append(buffer, 0, bytesRead);
+            }
 
-        // Only save the request body if there is something to save
-        if (body.getLength() > 0) {
-            saved.setContentType(request.getContentType());
-            saved.setBody(body);
+            // Only save the request body if there is something to save
+            if (body.getLength() > 0) {
+                saved.setContentType(request.getContentType());
+                saved.setBody(body);
+            }
         }
 
         saved.setMethod(request.getMethod());
@@ -687,19 +690,17 @@ public class FormAuthenticator
      * @return the original request URL
      */
     protected String savedRequestURL(Session session) {
-
         SavedRequest saved =
             (SavedRequest) session.getNote(Constants.FORM_REQUEST_NOTE);
         if (saved == null) {
-            return (null);
+            return null;
         }
         StringBuilder sb = new StringBuilder(saved.getRequestURI());
         if (saved.getQueryString() != null) {
             sb.append('?');
             sb.append(saved.getQueryString());
         }
-        return (sb.toString());
-
+        return sb.toString();
     }
 
 

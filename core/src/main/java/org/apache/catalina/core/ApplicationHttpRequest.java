@@ -26,22 +26,26 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
+import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 
 import javax.servlet.DispatcherType;
 import javax.servlet.RequestDispatcher;
 import javax.servlet.ServletContext;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletRequestWrapper;
+import javax.servlet.http.HttpServletMapping;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletRequestWrapper;
 import javax.servlet.http.HttpSession;
 import javax.servlet.http.PushBuilder;
-import javax.servlet.http.ServletMapping;
 
 import org.apache.catalina.Context;
 import org.apache.catalina.Globals;
 import org.apache.catalina.Manager;
 import org.apache.catalina.Session;
+import org.apache.catalina.connector.RequestFacade;
 import org.apache.catalina.util.ParameterMap;
 import org.apache.catalina.util.RequestUtil;
 import org.apache.tomcat.util.buf.B2CConverter;
@@ -192,7 +196,7 @@ class ApplicationHttpRequest extends HttpServletRequestWrapper {
     /**
      * The mapping for this request.
      */
-    private ServletMapping mapping = null;
+    private HttpServletMapping mapping = null;
 
 
     /**
@@ -261,7 +265,7 @@ class ApplicationHttpRequest extends HttpServletRequestWrapper {
      */
     @Override
     public Enumeration<String> getAttributeNames() {
-        return (new AttributeNamesEnumerator());
+        return new AttributeNamesEnumerator();
     }
 
 
@@ -315,13 +319,13 @@ class ApplicationHttpRequest extends HttpServletRequestWrapper {
     public RequestDispatcher getRequestDispatcher(String path) {
 
         if (context == null)
-            return (null);
+            return null;
 
         // If the path is already context-relative, just pass it through
         if (path == null)
-            return (null);
+            return null;
         else if (path.startsWith("/"))
-            return (context.getServletContext().getRequestDispatcher(path));
+            return context.getServletContext().getRequestDispatcher(path);
 
         // Convert a request-relative path to a context-relative one
         String servletPath =
@@ -347,7 +351,7 @@ class ApplicationHttpRequest extends HttpServletRequestWrapper {
             relative = requestPath + path;
         }
 
-        return (context.getServletContext().getRequestDispatcher(relative));
+        return context.getServletContext().getRequestDispatcher(relative);
 
     }
 
@@ -371,9 +375,7 @@ class ApplicationHttpRequest extends HttpServletRequestWrapper {
      */
     @Override
     public String getContextPath() {
-
-        return (this.contextPath);
-
+        return this.contextPath;
     }
 
 
@@ -384,7 +386,6 @@ class ApplicationHttpRequest extends HttpServletRequestWrapper {
      */
     @Override
     public String getParameter(String name) {
-
         parseParameters();
 
         String[] value = parameters.get(name);
@@ -392,7 +393,6 @@ class ApplicationHttpRequest extends HttpServletRequestWrapper {
             return null;
         }
         return value[0];
-
     }
 
 
@@ -402,10 +402,8 @@ class ApplicationHttpRequest extends HttpServletRequestWrapper {
      */
     @Override
     public Map<String, String[]> getParameterMap() {
-
         parseParameters();
-        return (parameters);
-
+        return parameters;
     }
 
 
@@ -415,7 +413,6 @@ class ApplicationHttpRequest extends HttpServletRequestWrapper {
      */
     @Override
     public Enumeration<String> getParameterNames() {
-
         parseParameters();
         return Collections.enumeration(parameters.keySet());
     }
@@ -429,10 +426,8 @@ class ApplicationHttpRequest extends HttpServletRequestWrapper {
      */
     @Override
     public String[] getParameterValues(String name) {
-
         parseParameters();
         return parameters.get(name);
-
     }
 
 
@@ -441,9 +436,7 @@ class ApplicationHttpRequest extends HttpServletRequestWrapper {
      */
     @Override
     public String getPathInfo() {
-
-        return (this.pathInfo);
-
+        return this.pathInfo;
     }
 
 
@@ -467,9 +460,7 @@ class ApplicationHttpRequest extends HttpServletRequestWrapper {
      */
     @Override
     public String getQueryString() {
-
-        return (this.queryString);
-
+        return this.queryString;
     }
 
 
@@ -479,9 +470,7 @@ class ApplicationHttpRequest extends HttpServletRequestWrapper {
      */
     @Override
     public String getRequestURI() {
-
-        return (this.requestURI);
-
+        return this.requestURI;
     }
 
 
@@ -501,14 +490,12 @@ class ApplicationHttpRequest extends HttpServletRequestWrapper {
      */
     @Override
     public String getServletPath() {
-
-        return (this.servletPath);
-
+        return this.servletPath;
     }
 
 
     @Override
-    public ServletMapping getServletMapping() {
+    public HttpServletMapping getHttpServletMapping() {
         return mapping;
     }
 
@@ -519,7 +506,7 @@ class ApplicationHttpRequest extends HttpServletRequestWrapper {
      */
     @Override
     public HttpSession getSession() {
-        return (getSession(true));
+        return getSession(true);
     }
 
 
@@ -536,11 +523,11 @@ class ApplicationHttpRequest extends HttpServletRequestWrapper {
 
             // There cannot be a session if no context has been assigned yet
             if (context == null)
-                return (null);
+                return null;
 
             // Return the current session if it exists and is valid
             if (session != null && session.isValid()) {
-                return (session.getSession());
+                return session.getSession();
             }
 
             HttpSession other = super.getSession(false);
@@ -620,7 +607,15 @@ class ApplicationHttpRequest extends HttpServletRequestWrapper {
 
     @Override
     public PushBuilder newPushBuilder() {
-        return new ApplicationPushBuilder(this);
+        ServletRequest current = getRequest();
+        while (current instanceof ServletRequestWrapper) {
+            current = ((ServletRequestWrapper) current).getRequest();
+        }
+        if (current instanceof RequestFacade) {
+            return ((RequestFacade) current).newPushBuilder(this);
+        } else {
+            return null;
+        }
     }
 
 
@@ -692,7 +687,7 @@ class ApplicationHttpRequest extends HttpServletRequestWrapper {
         queryString = request.getQueryString();
         requestURI = request.getRequestURI();
         servletPath = request.getServletPath();
-        mapping = request.getServletMapping();
+        mapping = request.getHttpServletMapping();
     }
 
 
@@ -751,7 +746,7 @@ class ApplicationHttpRequest extends HttpServletRequestWrapper {
     }
 
 
-    void setMapping(ServletMapping mapping) {
+    void setMapping(HttpServletMapping mapping) {
         this.mapping = mapping;
     }
 
@@ -784,10 +779,10 @@ class ApplicationHttpRequest extends HttpServletRequestWrapper {
     protected int getSpecial(String name) {
         for (int i = 0; i < specials.length; i++) {
             if (specials[i].equals(name)) {
-                return (i);
+                return i;
             }
         }
-        return (-1);
+        return -1;
     }
 
 
@@ -831,7 +826,7 @@ class ApplicationHttpRequest extends HttpServletRequestWrapper {
      */
     private String[] mergeValues(String[] values1, String[] values2) {
 
-        ArrayList<Object> results = new ArrayList<>();
+        List<Object> results = new ArrayList<>();
 
         if (values1 == null) {
             // Skip - nothing to merge
@@ -948,7 +943,7 @@ class ApplicationHttpRequest extends HttpServletRequestWrapper {
                 for (int i = pos + 1; i <= last; i++) {
                     if (getAttribute(specials[i]) != null) {
                         pos = i;
-                        return (specials[i]);
+                        return specials[i];
                     }
                 }
             }

@@ -23,7 +23,6 @@ import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
@@ -354,12 +353,10 @@ public abstract class ContainerBase extends LifecycleMBeanBase
      */
     @Override
     public Log getLogger() {
-
         if (logger != null)
-            return (logger);
+            return logger;
         logger = LogFactory.getLog(getLogName());
-        return (logger);
-
+        return logger;
     }
 
 
@@ -484,9 +481,7 @@ public abstract class ContainerBase extends LifecycleMBeanBase
      */
     @Override
     public String getName() {
-
-        return (name);
-
+        return name;
     }
 
 
@@ -517,9 +512,7 @@ public abstract class ContainerBase extends LifecycleMBeanBase
      * @return <code>true</code> if the children will be started
      */
     public boolean getStartChildren() {
-
-        return (startChildren);
-
+        return startChildren;
     }
 
 
@@ -543,9 +536,7 @@ public abstract class ContainerBase extends LifecycleMBeanBase
      */
     @Override
     public Container getParent() {
-
-        return (parent);
-
+        return parent;
     }
 
 
@@ -578,12 +569,11 @@ public abstract class ContainerBase extends LifecycleMBeanBase
     @Override
     public ClassLoader getParentClassLoader() {
         if (parentClassLoader != null)
-            return (parentClassLoader);
+            return parentClassLoader;
         if (parent != null) {
-            return (parent.getParentClassLoader());
+            return parent.getParentClassLoader();
         }
-        return (ClassLoader.getSystemClassLoader());
-
+        return ClassLoader.getSystemClassLoader();
     }
 
 
@@ -612,9 +602,7 @@ public abstract class ContainerBase extends LifecycleMBeanBase
      */
     @Override
     public Pipeline getPipeline() {
-
-        return (this.pipeline);
-
+        return this.pipeline;
     }
 
 
@@ -630,9 +618,9 @@ public abstract class ContainerBase extends LifecycleMBeanBase
         l.lock();
         try {
             if (realm != null)
-                return (realm);
+                return realm;
             if (parent != null)
-                return (parent.getRealm());
+                return parent.getRealm();
             return null;
         } finally {
             l.unlock();
@@ -1284,11 +1272,9 @@ public abstract class ContainerBase extends LifecycleMBeanBase
 
     public ObjectName[] getChildren() {
         List<ObjectName> names = new ArrayList<>(children.size());
-        Iterator<Container>  it = children.values().iterator();
-        while (it.hasNext()) {
-            Object next = it.next();
+        for (Container next : children.values()) {
             if (next instanceof ContainerBase) {
-                names.add(((ContainerBase)next).getObjectName());
+                names.add(next.getObjectName());
             }
         }
         return names.toArray(new ObjectName[names.size()]);

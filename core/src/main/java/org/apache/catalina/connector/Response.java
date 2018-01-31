@@ -33,9 +33,11 @@ import java.util.Collection;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.TimeZone;
 import java.util.Vector;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 
 import javax.servlet.ServletOutputStream;
 import javax.servlet.ServletResponse;
@@ -49,12 +51,10 @@ import org.apache.catalina.Globals;
 import org.apache.catalina.Session;
 import org.apache.catalina.Wrapper;
 import org.apache.catalina.security.SecurityUtil;
-import org.apache.catalina.util.RequestUtil;
 import org.apache.catalina.util.SessionConfig;
 import org.apache.coyote.ActionCode;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
-import org.apache.tomcat.util.buf.B2CConverter;
 import org.apache.tomcat.util.buf.CharChunk;
 import org.apache.tomcat.util.buf.UEncoder;
 import org.apache.tomcat.util.buf.UEncoder.SafeCharsSet;
@@ -63,6 +63,7 @@ import org.apache.tomcat.util.http.FastHttpDateFormat;
 import org.apache.tomcat.util.http.MimeHeaders;
 import org.apache.tomcat.util.http.parser.MediaTypeCache;
 import org.apache.tomcat.util.res.StringManager;
+import org.apache.tomcat.util.security.Escape;
 
 /**
  * Wrapper object for the Coyote response.
@@ -139,7 +140,7 @@ public class Response implements HttpServletResponse {
      * @return the Context within which this Request is being processed.
      */
     public Context getContext() {
-        return (request.getContext());
+        return request.getContext();
     }
 
 
@@ -330,9 +331,9 @@ public class Response implements HttpServletResponse {
      * @return <code>true</code> if the application has committed the response
      */
     public boolean isAppCommitted() {
-        return (this.appCommitted || isCommitted() || isSuspended()
+        return this.appCommitted || isCommitted() || isSuspended()
                 || ((getContentLength() > 0)
-                    && (getContentWritten() >= getContentLength())));
+                    && (getContentWritten() >= getContentLength()));
     }
 
 
@@ -345,7 +346,7 @@ public class Response implements HttpServletResponse {
      * @return the Request with which this Response is associated.
      */
     public org.apache.catalina.connector.Request getRequest() {
-        return (this.request);
+        return this.request;
     }
 
     /**
@@ -551,9 +552,9 @@ public class Response implements HttpServletResponse {
      */
     @Override
     public String getCharacterEncoding() {
-        Charset charset = getCoyoteResponse().getCharset();
+        String charset = getCoyoteResponse().getCharacterEncoding();
         if (charset != null) {
-            return charset.name();
+            return charset;
         }
 
         Context context = getContext();
@@ -600,7 +601,7 @@ public class Response implements HttpServletResponse {
      */
     @Override
     public Locale getLocale() {
-        return (getCoyoteResponse().getLocale());
+        return getCoyoteResponse().getLocale();
     }
 
 
@@ -802,7 +803,7 @@ public class Response implements HttpServletResponse {
             // Ignore charset if getWriter() has already been called
             if (!usingWriter) {
                 try {
-                    getCoyoteResponse().setCharset(B2CConverter.getCharset(m[1]));
+                    getCoyoteResponse().setCharacterEncoding(m[1]);
                 } catch (UnsupportedEncodingException e) {
                     log.warn(sm.getString("coyoteResponse.encoding.invalid", m[1]), e);
                 }
@@ -839,7 +840,7 @@ public class Response implements HttpServletResponse {
         }
 
         try {
-            getCoyoteResponse().setCharset(B2CConverter.getCharset(charset));
+            getCoyoteResponse().setCharacterEncoding(charset);
         } catch (UnsupportedEncodingException e) {
             log.warn(sm.getString("coyoteResponse.encoding.invalid", charset), e);
             return;
@@ -881,7 +882,7 @@ public class Response implements HttpServletResponse {
         String charset = getContext().getCharset(locale);
         if (charset != null) {
             try {
-                getCoyoteResponse().setCharset(B2CConverter.getCharset(charset));
+                getCoyoteResponse().setCharacterEncoding(charset);
             } catch (UnsupportedEncodingException e) {
                 log.warn(sm.getString("coyoteResponse.encoding.invalid", charset), e);
             }
@@ -1152,6 +1153,18 @@ public class Response implements HttpServletResponse {
     }
 
 
+    @Override
+    public void setTrailerFields(Supplier<Map<String, String>> supplier) {
+        getCoyoteResponse().setTrailerFields(supplier);
+    }
+
+
+    @Override
+    public Supplier<Map<String, String>> getTrailerFields() {
+        return getCoyoteResponse().getTrailerFields();
+    }
+
+
     /**
      * Encode the session identifier associated with this response
      * into the specified redirect URL, if necessary.
@@ -1161,13 +1174,11 @@ public class Response implements HttpServletResponse {
      */
     @Override
     public String encodeRedirectURL(String url) {
-
         if (isEncodeable(toAbsolute(url))) {
-            return (toEncoded(url, request.getSessionInternal().getIdInternal()));
+            return toEncoded(url, request.getSessionInternal().getIdInternal());
         } else {
-            return (url);
+            return url;
         }
-
     }
 
 
@@ -1184,7 +1195,7 @@ public class Response implements HttpServletResponse {
     @Override
     @Deprecated
     public String encodeRedirectUrl(String url) {
-        return (encodeRedirectURL(url));
+        return encodeRedirectURL(url);
     }
 
 
@@ -1213,9 +1224,9 @@ public class Response implements HttpServletResponse {
             } else if (url.equals(absolute) && !hasPath(url)) {
                 url += '/';
             }
-            return (toEncoded(url, request.getSessionInternal().getIdInternal()));
+            return toEncoded(url, request.getSessionInternal().getIdInternal());
         } else {
-            return (url);
+            return url;
         }
 
     }
@@ -1234,7 +1245,7 @@ public class Response implements HttpServletResponse {
     @Override
     @Deprecated
     public String encodeUrl(String url) {
-        return (encodeURL(url));
+        return encodeURL(url);
     }
 
 
@@ -1363,7 +1374,7 @@ public class Response implements HttpServletResponse {
             if (getContext().getSendRedirectBody()) {
                 PrintWriter writer = getWriter();
                 writer.print(sm.getString("coyoteResponse.sendRedirect.note",
-                        RequestUtil.filter(locationUri)));
+                        Escape.htmlElementContent(locationUri)));
                 flushBuffer();
             }
         } catch (IllegalArgumentException e) {
@@ -1630,7 +1641,7 @@ public class Response implements HttpServletResponse {
     protected String toAbsolute(String location) {
 
         if (location == null) {
-            return (location);
+            return location;
         }
 
         boolean leadingSlash = location.startsWith("/");
@@ -1705,7 +1716,7 @@ public class Response implements HttpServletResponse {
 
         } else {
 
-            return (location);
+            return location;
 
         }
 
@@ -1801,9 +1812,7 @@ public class Response implements HttpServletResponse {
     }
 
     private void copyChars(char[] c, int dest, int src, int len) {
-        for (int pos = 0; pos < len; pos++) {
-            c[pos + dest] = c[pos + src];
-        }
+        System.arraycopy(c, src, c, dest, len);
     }
 
 
@@ -1834,9 +1843,8 @@ public class Response implements HttpServletResponse {
      * @return the encoded URL
      */
     protected String toEncoded(String url, String sessionId) {
-
         if ((url == null) || (sessionId == null)) {
-            return (url);
+            return url;
         }
 
         String path = url;
@@ -1862,8 +1870,7 @@ public class Response implements HttpServletResponse {
         }
         sb.append(anchor);
         sb.append(query);
-        return (sb.toString());
-
+        return sb.toString();
     }
 
 

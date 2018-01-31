@@ -28,6 +28,7 @@ import org.apache.jasper.Constants;
 import org.apache.jasper.JasperException;
 import org.apache.jasper.JspCompilationContext;
 import org.apache.tomcat.Jar;
+import org.apache.tomcat.util.security.Escape;
 import org.xml.sax.Attributes;
 import org.xml.sax.InputSource;
 
@@ -81,7 +82,7 @@ public class JspUtil {
             returnString = expression;
         }
 
-        return escapeXml(returnString);
+        return Escape.xml(returnString);
     }
 
     /**
@@ -212,35 +213,6 @@ public class JspUtil {
             }
         }
         // XXX *could* move EL-syntax validation here... (sb)
-    }
-
-    /**
-     * Escape the 5 entities defined by XML.
-     * @param s String to escape
-     * @return XML escaped string
-     */
-    public static String escapeXml(String s) {
-        if (s == null) {
-            return null;
-        }
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < s.length(); i++) {
-            char c = s.charAt(i);
-            if (c == '<') {
-                sb.append("&lt;");
-            } else if (c == '>') {
-                sb.append("&gt;");
-            } else if (c == '\'') {
-                sb.append("&apos;");
-            } else if (c == '&') {
-                sb.append("&amp;");
-            } else if (c == '"') {
-                sb.append("&quot;");
-            } else {
-                sb.append(c);
-            }
-        }
-        return sb.toString();
     }
 
     public static class ValidAttribute {
@@ -892,7 +864,7 @@ public class JspUtil {
         int i = 0;
         int j = javaKeywords.length;
         while (i < j) {
-            int k = (i + j) / 2;
+            int k = (i + j) >>> 1;
             int result = javaKeywords[k].compareTo(key);
             if (result == 0) {
                 return true;

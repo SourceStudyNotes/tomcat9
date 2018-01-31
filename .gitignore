@@ -2,6 +2,4 @@
 *.class
 */target/*
 .idea/*
-*/output/logs/*
-*/output/work/*
-*/webapps/*
+

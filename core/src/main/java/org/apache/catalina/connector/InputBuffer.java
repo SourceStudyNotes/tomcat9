@@ -272,7 +272,6 @@ public class InputBuffer extends Reader
             }
             return false;
         }
-        //通过content-length判断是否一个消息读取完
         if (isFinished()) {
             // If this is a non-container thread, need to trigger a read
             // which will eventually lead to a call to onAllDataRead() via a
@@ -283,7 +282,6 @@ public class InputBuffer extends Reader
             }
             return false;
         }
-        //注册读数据事件
         boolean result = available() > 0;
         if (!result) {
             coyoteRequest.action(ActionCode.NB_READ_INTEREST, null);
@@ -291,10 +289,7 @@ public class InputBuffer extends Reader
         return result;
     }
 
-    /**
-     * 通过是否有读监听函数来判断是否是阻塞的
-     * @return
-     */
+
     boolean isBlocking() {
         return coyoteRequest.getReadListener() == null;
     }

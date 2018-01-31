@@ -22,7 +22,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -227,9 +226,7 @@ public class SecurityConstraint extends XmlEncodingBase implements Serializable 
         if (authenticatedUsers) {
             authenticatedUsers = false;
 
-            String results[] = new String[authRoles.length + 1];
-            for (int i = 0; i < authRoles.length; i++)
-                results[i] = authRoles[i];
+            String[] results = Arrays.copyOf(authRoles, authRoles.length + 1);
             results[authRoles.length] = ROLE_ALL_AUTHENTICATED_USERS;
             authRoles = results;
             authConstraint = true;
@@ -261,9 +258,7 @@ public class SecurityConstraint extends XmlEncodingBase implements Serializable 
             return;
         }
 
-        String results[] = new String[authRoles.length + 1];
-        for (int i = 0; i < authRoles.length; i++)
-            results[i] = authRoles[i];
+        String[] results = Arrays.copyOf(authRoles, authRoles.length + 1);
         results[authRoles.length] = authRole;
         authRoles = results;
         authConstraint = true;
@@ -283,10 +278,7 @@ public class SecurityConstraint extends XmlEncodingBase implements Serializable 
 
         collection.setCharset(getCharset());
 
-        SecurityCollection results[] =
-            new SecurityCollection[collections.length + 1];
-        for (int i = 0; i < collections.length; i++)
-            results[i] = collections[i];
+        SecurityCollection results[] = Arrays.copyOf(collections, collections.length + 1);
         results[collections.length] = collection;
         collections = results;
 
@@ -321,9 +313,7 @@ public class SecurityConstraint extends XmlEncodingBase implements Serializable 
      * @return the roles array
      */
     public String[] findAuthRoles() {
-
-        return (authRoles);
-
+        return authRoles;
     }
 
 
@@ -335,15 +325,13 @@ public class SecurityConstraint extends XmlEncodingBase implements Serializable 
      * @return the collection
      */
     public SecurityCollection findCollection(String name) {
-
         if (name == null)
-            return (null);
+            return null;
         for (int i = 0; i < collections.length; i++) {
             if (name.equals(collections[i].getName()))
-                return (collections[i]);
+                return collections[i];
         }
-        return (null);
-
+        return null;
     }
 
 
@@ -354,9 +342,7 @@ public class SecurityConstraint extends XmlEncodingBase implements Serializable 
      * @return the collections array
      */
     public SecurityCollection[] findCollections() {
-
-        return (collections);
-
+        return collections;
     }
 
 
@@ -466,7 +452,6 @@ public class SecurityConstraint extends XmlEncodingBase implements Serializable 
      */
     @Override
     public String toString() {
-
         StringBuilder sb = new StringBuilder("SecurityConstraint[");
         for (int i = 0; i < collections.length; i++) {
             if (i > 0)
@@ -474,8 +459,7 @@ public class SecurityConstraint extends XmlEncodingBase implements Serializable 
             sb.append(collections[i].getName());
         }
         sb.append("]");
-        return (sb.toString());
-
+        return sb.toString();
     }
 
 
@@ -558,9 +542,7 @@ public class SecurityConstraint extends XmlEncodingBase implements Serializable 
         // Add the per method constraints
         Collection<HttpMethodConstraintElement> methods =
             element.getHttpMethodConstraints();
-        Iterator<HttpMethodConstraintElement> methodIter = methods.iterator();
-        while (methodIter.hasNext()) {
-            HttpMethodConstraintElement methodElement = methodIter.next();
+        for (HttpMethodConstraintElement methodElement : methods) {
             SecurityConstraint constraint =
                 createConstraint(methodElement, urlPattern, true);
             // There will always be a single collection
@@ -574,9 +556,8 @@ public class SecurityConstraint extends XmlEncodingBase implements Serializable 
         if (constraint != null) {
             // There will always be a single collection
             SecurityCollection collection = constraint.findCollections()[0];
-            Iterator<String> ommittedMethod = element.getMethodNames().iterator();
-            while (ommittedMethod.hasNext()) {
-                collection.addOmittedMethod(ommittedMethod.next());
+            for (String name : element.getMethodNames()) {
+                collection.addOmittedMethod(name);
             }
 
             result.add(constraint);

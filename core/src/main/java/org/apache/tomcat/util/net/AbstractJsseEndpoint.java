@@ -21,7 +21,6 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.nio.channels.NetworkChannel;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -82,6 +81,7 @@ public abstract class AbstractJsseEndpoint<S,U> extends AbstractEndpoint<S,U> {
             sslImplementation = SSLImplementation.getInstance(getSslImplementationName());
 
             for (SSLHostConfig sslHostConfig : sslHostConfigs.values()) {
+                sslHostConfig.setConfigType(getSslConfigType());
                 createSSLContext(sslHostConfig);
             }
 
@@ -177,8 +177,9 @@ public abstract class AbstractJsseEndpoint<S,U> extends AbstractEndpoint<S,U> {
 
         SSLParameters sslParameters = engine.getSSLParameters();
         sslParameters.setUseCipherSuitesOrder(sslHostConfig.getHonorCipherOrder());
-        if (JreCompat.isJre9Available() && clientRequestedApplicationProtocols.size() > 0 &&
-                negotiableProtocols.size() > 0) {
+        if (JreCompat.isJre9Available() && clientRequestedApplicationProtocols != null
+                && clientRequestedApplicationProtocols.size() > 0
+                && negotiableProtocols.size() > 0) {
             // Only try to negotiate if both client and server have at least
             // one protocol in common
             // Note: Tomcat does not explicitly negotiate http/1.1
@@ -217,9 +218,7 @@ public abstract class AbstractJsseEndpoint<S,U> extends AbstractEndpoint<S,U> {
             candidateCiphers.retainAll(serverCiphers);
         }
 
-        Iterator<Cipher> candidateIter = candidateCiphers.iterator();
-        while (candidateIter.hasNext()) {
-            Cipher candidate = candidateIter.next();
+        for (Cipher candidate : candidateCiphers) {
             for (SSLHostConfigCertificate certificate : certificates) {
                 if (certificate.getType().isCompatibleWith(candidate.getAu())) {
                     return certificate;

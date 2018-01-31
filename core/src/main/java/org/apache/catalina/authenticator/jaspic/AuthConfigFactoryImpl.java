@@ -18,7 +18,6 @@ package org.apache.catalina.authenticator.jaspic;
 
 import java.io.File;
 import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -61,7 +60,7 @@ public class AuthConfigFactoryImpl extends AuthConfigFactory {
             new ConcurrentHashMap<>();
     // Note: Although there will only ever be a maximum of one entry in this
     //       Map, use a ConcurrentHashMap for consistency
-    private volatile Map<String,RegistrationContextImpl> defaultRegistration =
+    private final Map<String,RegistrationContextImpl> defaultRegistration =
             new ConcurrentHashMap<>(1);
 
 
@@ -76,9 +75,11 @@ public class AuthConfigFactoryImpl extends AuthConfigFactory {
         RegistrationContextImpl registrationContext =
                 findRegistrationContextImpl(layer, appContext);
         if (registrationContext != null) {
-            RegistrationListenerWrapper wrapper = new RegistrationListenerWrapper(
-                    layer, appContext, listener);
-            registrationContext.addListener(wrapper);
+            if (listener != null) {
+                RegistrationListenerWrapper wrapper = new RegistrationListenerWrapper(
+                        layer, appContext, listener);
+                registrationContext.addListener(wrapper);
+            }
             return registrationContext.getProvider();
         }
         return null;
@@ -104,20 +105,10 @@ public class AuthConfigFactoryImpl extends AuthConfigFactory {
             log.debug(sm.getString("authConfigFactoryImpl.registerClass",
                     className, layer, appContext));
         }
-        Class<?> clazz;
+
         AuthConfigProvider provider = null;
-        try {
-            clazz = Class.forName(className, true, Thread.currentThread().getContextClassLoader());
-        } catch (ClassNotFoundException e) {
-            // Ignore so the re-try below can proceed
-        }
-        try {
-            clazz = Class.forName(className);
-            Constructor<?> constructor = clazz.getConstructor(Map.class, AuthConfigFactory.class);
-            provider = (AuthConfigProvider) constructor.newInstance(properties, null);
-        } catch (ClassNotFoundException | NoSuchMethodException | InstantiationException |
-                IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
-            throw new SecurityException(e);
+        if (className != null) {
+            provider = createAuthConfigProvider(className, properties);
         }
 
         String registrationID = getRegistrationID(layer, appContext);
@@ -125,6 +116,28 @@ public class AuthConfigFactoryImpl extends AuthConfigFactory {
                 layer, appContext, description, true, provider, properties);
         addRegistrationContextImpl(layer, appContext, registrationID, registrationContextImpl);
         return registrationID;
+    }
+
+
+    private AuthConfigProvider createAuthConfigProvider(String className,
+            @SuppressWarnings("rawtypes") Map properties) throws SecurityException {
+        Class<?> clazz = null;
+        AuthConfigProvider provider = null;
+        try {
+            clazz = Class.forName(className, true, Thread.currentThread().getContextClassLoader());
+        } catch (ClassNotFoundException e) {
+            // Ignore so the re-try below can proceed
+        }
+        try {
+            if (clazz == null) {
+                clazz = Class.forName(className);
+            }
+            Constructor<?> constructor = clazz.getConstructor(Map.class, AuthConfigFactory.class);
+            provider = (AuthConfigProvider) constructor.newInstance(properties, null);
+        } catch (ReflectiveOperationException | IllegalArgumentException e) {
+            throw new SecurityException(e);
+        }
+        return provider;
     }
 
 
@@ -236,6 +249,9 @@ public class AuthConfigFactoryImpl extends AuthConfigFactory {
             for (RegistrationListenerWrapper wrapper : registration.listeners) {
                 wrapper.getListener().notify(wrapper.getMessageLayer(), wrapper.getAppContext());
             }
+            if (registration.isPersistent()) {
+                savePersistentRegistrations();
+            }
             return true;
         }
     }
@@ -245,7 +261,7 @@ public class AuthConfigFactoryImpl extends AuthConfigFactory {
     public String[] detachListener(RegistrationListener listener, String layer, String appContext) {
         String registrationID = getRegistrationID(layer, appContext);
         RegistrationContextImpl registrationContext = findRegistrationContextImpl(layer, appContext);
-        if (registrationContext.removeListener(listener)) {
+        if (registrationContext != null && registrationContext.removeListener(listener)) {
             return new String[] { registrationID };
         }
         return EMPTY_STRING_ARRAY;
@@ -259,7 +275,7 @@ public class AuthConfigFactoryImpl extends AuthConfigFactory {
             result.addAll(layerAppContextRegistrations.keySet());
             result.addAll(appContextRegistrations.keySet());
             result.addAll(layerRegistrations.keySet());
-            if (defaultRegistration != null) {
+            if (!defaultRegistration.isEmpty()) {
                 result.add(DEFAULT_REGISTRATION_ID);
             }
         } else {
@@ -360,7 +376,9 @@ public class AuthConfigFactoryImpl extends AuthConfigFactory {
         if (registrationContextImpl != null && registrationContextImpl.isPersistent()) {
             Provider provider = new Provider();
             provider.setAppContext(registrationContextImpl.getAppContext());
-            provider.setClassName(registrationContextImpl.getProvider().getClass().getName());
+            if (registrationContextImpl.getProvider() != null) {
+                provider.setClassName(registrationContextImpl.getProvider().getClass().getName());
+            }
             provider.setDescription(registrationContextImpl.getDescription());
             provider.setLayer(registrationContextImpl.getMessageLayer());
             for (Entry<String,String> property : registrationContextImpl.getProperties().entrySet()) {
@@ -456,6 +474,7 @@ public class AuthConfigFactoryImpl extends AuthConfigFactory {
             for (RegistrationListenerWrapper wrapper : listeners) {
                 if (wrapper.getListener().equals(listener)) {
                     listeners.remove(wrapper);
+                    result = true;
                 }
             }
             return result;

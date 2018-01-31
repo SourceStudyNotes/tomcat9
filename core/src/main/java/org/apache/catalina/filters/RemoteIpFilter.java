@@ -18,8 +18,8 @@ package org.apache.catalina.filters;
 
 import java.io.IOException;
 import java.text.DateFormat;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.Enumeration;
@@ -35,6 +35,7 @@ import javax.servlet.FilterChain;
 import javax.servlet.GenericFilter;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
+import javax.servlet.ServletRequestWrapper;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletRequestWrapper;
@@ -43,7 +44,7 @@ import javax.servlet.http.PushBuilder;
 
 import org.apache.catalina.AccessLog;
 import org.apache.catalina.Globals;
-import org.apache.catalina.core.ApplicationPushBuilder;
+import org.apache.catalina.connector.RequestFacade;
 import org.apache.catalina.util.RequestUtil;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
@@ -497,7 +498,7 @@ public class RemoteIpFilter extends GenericFilter {
                 DateFormat dateFormat = dateFormats[i];
                 try {
                     date = dateFormat.parse(value);
-                } catch (Exception ParseException) {
+                } catch (ParseException ex) {
                     // Ignore
                 }
             }
@@ -586,7 +587,7 @@ public class RemoteIpFilter extends GenericFilter {
         }
 
         public void setHeader(String name, String value) {
-            List<String> values = Arrays.asList(value);
+            List<String> values = Collections.singletonList(value);
             Map.Entry<String, List<String>> header = getHeaderEntry(name);
             if (header == null) {
                 headers.put(name, values);
@@ -627,7 +628,15 @@ public class RemoteIpFilter extends GenericFilter {
 
         @Override
         public PushBuilder newPushBuilder() {
-            return new ApplicationPushBuilder(this);
+            ServletRequest current = getRequest();
+            while (current instanceof ServletRequestWrapper) {
+                current = ((ServletRequestWrapper) current).getRequest();
+            }
+            if (current instanceof RequestFacade) {
+                return ((RequestFacade) current).newPushBuilder(this);
+            } else {
+                return null;
+            }
         }
     }
 

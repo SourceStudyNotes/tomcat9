@@ -100,23 +100,10 @@ import org.apache.juli.logging.LogFactory;
  * @author Craig R. McClanahan
  * @author Costin Manolache
  */
-public class BaseModelMBean implements DynamicMBean, MBeanRegistration, ModelMBeanNotificationBroadcaster {
+public class BaseModelMBean implements DynamicMBean, MBeanRegistration,
+        ModelMBeanNotificationBroadcaster {
+
     private static final Log log = LogFactory.getLog(BaseModelMBean.class);
-
-    // ----------------------------------------------------------- Constructors
-
-    /**
-     * Construct a <code>ModelMBean</code> with default
-     * <code>ModelMBeanInfo</code> information.
-     *
-     * @exception MBeanException if the initializer of an object
-     *  throws an exception
-     * @exception RuntimeOperationsException if an IllegalArgumentException
-     *  occurs
-     */
-    protected BaseModelMBean() throws MBeanException, RuntimeOperationsException {
-        super();
-    }
 
     // ----------------------------------------------------- Instance Variables
 
@@ -208,7 +195,7 @@ public class BaseModelMBean implements DynamicMBean, MBeanRegistration, ModelMBe
 
         // Return the results of this method invocation
         // FIXME - should we validate the return type?
-        return (result);
+        return result;
     }
 
 
@@ -236,7 +223,7 @@ public class BaseModelMBean implements DynamicMBean, MBeanRegistration, ModelMBe
                 // is the indication of a getter problem
             }
         }
-        return (response);
+        return response;
 
     }
 
@@ -321,7 +308,7 @@ public class BaseModelMBean implements DynamicMBean, MBeanRegistration, ModelMBe
 
         // Return the results of this method invocation
         // FIXME - should we validate the return type?
-        return (result);
+        return result;
 
     }
 
@@ -484,7 +471,7 @@ public class BaseModelMBean implements DynamicMBean, MBeanRegistration, ModelMBe
             }
         }
 
-        return (getAttributes(names));
+        return getAttributes(names);
 
     }
 
@@ -835,7 +822,7 @@ public class BaseModelMBean implements DynamicMBean, MBeanRegistration, ModelMBe
 
         // Copy remaining notifications as reported by the application
         System.arraycopy(current, 0, response, 2, current.length);
-        return (response);
+        return response;
 
     }
 

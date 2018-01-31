@@ -783,8 +783,7 @@ public class JspRuntimeLibrary {
         throws JasperException
     {
         try {
-            PropertyEditor pe =
-                (PropertyEditor)propertyEditorClass.newInstance();
+            PropertyEditor pe = (PropertyEditor)propertyEditorClass.getConstructor().newInstance();
             pe.setAsText(attrValue);
             return pe.getValue();
         } catch (Exception ex) {
@@ -835,9 +834,9 @@ public class JspRuntimeLibrary {
                                                 String relativePath) {
 
         if (relativePath.startsWith("/"))
-            return (relativePath);
+            return relativePath;
         if (!(request instanceof HttpServletRequest))
-            return (relativePath);
+            return relativePath;
         HttpServletRequest hrequest = (HttpServletRequest) request;
         String uri = (String) request.getAttribute(
                 RequestDispatcher.INCLUDE_SERVLET_PATH);

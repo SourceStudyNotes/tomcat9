@@ -43,15 +43,8 @@ class EncodingDetector {
     private final boolean encodingSpecifiedInProlog;
 
 
-    /*
-     * TODO: Refactor Jasper InputStream creation and handling so the
-     *       InputStream passed to this method is buffered and therefore saves
-     *       on multiple opening and re-opening of the same file.
-     */
-    EncodingDetector(InputStream is) throws IOException {
-        // Keep buffer size to a minimum here. BoM will be no more than 4 bytes
-        // so that is the maximum we need to buffer
-        BufferedInputStream bis = new BufferedInputStream(is, 4);
+    EncodingDetector(BufferedInputStream bis) throws IOException {
+        // Buffer is 1k. BOM is only 4 bytes.
         bis.mark(4);
 
         BomResult bomResult = processBom(bis);
@@ -178,7 +171,7 @@ class EncodingDetector {
             return new BomResult("ISO-10646-UCS-4", 0);
         }
         if (b0 == 0x00 && b1 == 0x3C && b2 == 0x00 && b3 == 0x00) {
-            // UCS-4, unusual octect order (3412)
+            // UCS-4, unusual octet order (3412)
             // REVISIT: What should this be?
             return new BomResult("ISO-10646-UCS-4", 0);
         }

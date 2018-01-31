@@ -141,9 +141,7 @@ public class HostManagerServlet
      */
     @Override
     public Wrapper getWrapper() {
-
-        return (this.wrapper);
-
+        return this.wrapper;
     }
 
 
@@ -481,7 +479,7 @@ public class HostManagerServlet
         try {
             Container child = engine.findChild(name);
             engine.removeChild(child);
-            if ( child instanceof ContainerBase ) ((ContainerBase)child).destroy();
+            if ( child instanceof ContainerBase ) child.destroy();
         } catch (Exception e) {
             writer.println(smClient.getString("hostManagerServlet.exception",
                     e.toString()));
@@ -582,9 +580,7 @@ public class HostManagerServlet
                     "hostManagerServlet.startFailed", name));
             writer.println(smClient.getString(
                     "hostManagerServlet.exception", e.toString()));
-            return;
         }
-
     }
 
 
@@ -644,9 +640,7 @@ public class HostManagerServlet
                     name));
             writer.println(smClient.getString("hostManagerServlet.exception",
                     e.toString()));
-            return;
         }
-
     }
 
 
@@ -677,7 +671,6 @@ public class HostManagerServlet
             } else {
                 writer.println(smClient.getString("hostManagerServlet.exception", e.toString()));
             }
-            return;
         }
     }
 

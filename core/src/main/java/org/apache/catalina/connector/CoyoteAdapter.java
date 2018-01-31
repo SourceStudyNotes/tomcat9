@@ -127,7 +127,7 @@ public class CoyoteAdapter implements Adapter {
 
     @Override
     public boolean asyncDispatch(org.apache.coyote.Request req, org.apache.coyote.Response res,
-            SocketEvent socketEvent) throws Exception {
+            SocketEvent status) throws Exception {
 
         Request request = (Request) req.getNote(ADAPTER_NOTES);
         Response response = (Response) res.getNote(ADAPTER_NOTES);
@@ -149,11 +149,11 @@ public class CoyoteAdapter implements Adapter {
                 response.setSuspended(false);
             }
 
-            if (socketEvent==SocketEvent.TIMEOUT) {
+            if (status==SocketEvent.TIMEOUT) {
                 if (!asyncConImpl.timeout()) {
                     asyncConImpl.setErrorState(null, false);
                 }
-            } else if (socketEvent==SocketEvent.ERROR) {
+            } else if (status==SocketEvent.ERROR) {
                 // An I/O error occurred on a non-container thread which means
                 // that the socket needs to be closed so set success to false to
                 // trigger a close
@@ -181,7 +181,7 @@ public class CoyoteAdapter implements Adapter {
             if (!request.isAsyncDispatching() && request.isAsync()) {
                 WriteListener writeListener = res.getWriteListener();
                 ReadListener readListener = req.getReadListener();
-                if (writeListener != null && socketEvent == SocketEvent.OPEN_WRITE) {
+                if (writeListener != null && status == SocketEvent.OPEN_WRITE) {
                     ClassLoader oldCL = null;
                     try {
                         oldCL = request.getContext().bind(false, null);
@@ -197,12 +197,12 @@ public class CoyoteAdapter implements Adapter {
                     } finally {
                         request.getContext().unbind(false, oldCL);
                     }
-                } else if (readListener != null && socketEvent == SocketEvent.OPEN_READ) {
+                } else if (readListener != null && status == SocketEvent.OPEN_READ) {
                     ClassLoader oldCL = null;
                     try {
                         oldCL = request.getContext().bind(false, null);
                         // If data is being read on a non-container thread a
-                        // dispatch with socketEvent OPEN_READ will be used to get
+                        // dispatch with status OPEN_READ will be used to get
                         // execution back on a container thread for the
                         // onAllDataRead() event. Therefore, make sure
                         // onDataAvailable() is not called in this case.
@@ -225,7 +225,6 @@ public class CoyoteAdapter implements Adapter {
             // Has an error occurred during async processing that needs to be
             // processed by the application's error page mechanism (or Tomcat's
             // if the application doesn't define one)?
-            //处理过程中出错，跳转到指定出错页。
             if (!request.isAsyncDispatching() && request.isAsync() &&
                     response.isErrorReportRequired()) {
                 connector.getService().getContainer().getPipeline().getFirst().invoke(
@@ -729,7 +728,7 @@ public class CoyoteAdapter implements Adapter {
                 // No session ID means no possibility of remap
                 if (contexts != null && sessionID != null) {
                     // Find the context associated with the session
-                    for (int i = (contexts.length); i > 0; i--) {
+                    for (int i = contexts.length; i > 0; i--) {
                         Context ctxt = contexts[i - 1];
                         if (ctxt.getManager().findSession(sessionID) != null) {
                             // We found a context. Is it the one that has
@@ -987,7 +986,7 @@ public class CoyoteAdapter implements Adapter {
 
 
     /**
-     * Parse session id in URL.
+     * Parse session id in Cookie.
      *
      * @param request The Servlet request object
      */
@@ -1298,8 +1297,6 @@ public class CoyoteAdapter implements Adapter {
      * @param len Length
      */
     protected static void copyBytes(byte[] b, int dest, int src, int len) {
-        for (int pos = 0; pos < len; pos++) {
-            b[pos + dest] = b[pos + src];
-        }
+        System.arraycopy(b, src, b, dest, len);
     }
 }

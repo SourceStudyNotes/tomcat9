@@ -27,7 +27,7 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Hashtable;
-import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.StringTokenizer;
 
@@ -201,8 +201,8 @@ public class RewriteValve extends ValveBase {
     }
 
     protected void parse(BufferedReader reader) throws LifecycleException {
-        ArrayList<RewriteRule> rules = new ArrayList<>();
-        ArrayList<RewriteCond> conditions = new ArrayList<>();
+        List<RewriteRule> rules = new ArrayList<>();
+        List<RewriteCond> conditions = new ArrayList<>();
         while (true) {
             try {
                 String line = reader.readLine();
@@ -259,9 +259,7 @@ public class RewriteValve extends ValveBase {
     @Override
     protected synchronized void stopInternal() throws LifecycleException {
         super.stopInternal();
-        Iterator<RewriteMap> values = maps.values().iterator();
-        while (values.hasNext()) {
-            RewriteMap map = values.next();
+        for (RewriteMap map : maps.values()) {
             if (map instanceof Lifecycle) {
                 ((Lifecycle) map).stop();
             }
@@ -525,18 +523,18 @@ public class RewriteValve extends ValveBase {
                     }
                     request.getMappingData().recycle();
                     // Reinvoke the whole request recursively
+                    Connector connector = request.getConnector();
                     try {
-                        Connector connector = request.getConnector();
                         if (!connector.getProtocolHandler().getAdapter().prepare(
                                 request.getCoyoteRequest(), response.getCoyoteResponse())) {
                             return;
                         }
-                        Pipeline pipeline = connector.getService().getContainer().getPipeline();
-                        request.setAsyncSupported(pipeline.isAsyncSupported());
-                        pipeline.getFirst().invoke(request, response);
                     } catch (Exception e) {
                         // This doesn't actually happen in the Catalina adapter implementation
                     }
+                    Pipeline pipeline = connector.getService().getContainer().getPipeline();
+                    request.setAsyncSupported(pipeline.isAsyncSupported());
+                    pipeline.getFirst().invoke(request, response);
                 }
             } else {
                 getNext().invoke(request, response);
@@ -652,7 +650,8 @@ public class RewriteValve extends ValveBase {
                 String rewriteMapClassName = tokenizer.nextToken();
                 RewriteMap map = null;
                 try {
-                    map = (RewriteMap) (Class.forName(rewriteMapClassName).newInstance());
+                    map = (RewriteMap) (Class.forName(
+                            rewriteMapClassName).getConstructor().newInstance());
                 } catch (Exception e) {
                     throw new IllegalArgumentException("Invalid map className: " + line);
                 }
@@ -760,9 +759,8 @@ public class RewriteValve extends ValveBase {
             rule.setNoescape(true);
         } else if (flag.startsWith("next") || flag.startsWith("N")) {
             rule.setNext(true);
-        // FIXME: Proxy not supported, would require proxy capabilities in Tomcat
-        /* } else if (flag.startsWith("proxy") || flag.startsWith("P")) {
-            rule.setProxy(true);*/
+        // Note: Proxy is not supported as Tomcat does not have proxy
+        //       capabilities
         } else if (flag.startsWith("qsappend") || flag.startsWith("QSA")) {
             rule.setQsappend(true);
         } else if (flag.startsWith("redirect") || flag.startsWith("R")) {

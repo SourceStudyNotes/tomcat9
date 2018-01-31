@@ -42,7 +42,7 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
 
     private static final StringManager sm = StringManager.getManager(AbstractProcessor.class);
 
-    protected Adapter adapter;
+    protected final Adapter adapter;
     protected final AsyncStateMachine asyncStateMachine;
     private volatile long asyncTimeout = -1;
     protected final Request request;
@@ -57,12 +57,13 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
     private ErrorState errorState = ErrorState.NONE;
 
 
-    public AbstractProcessor() {
-        this(new Request(), new Response());
+    public AbstractProcessor(Adapter adapter) {
+        this(adapter, new Request(), new Response());
     }
 
 
-    protected AbstractProcessor(Request coyoteRequest, Response coyoteResponse) {
+    protected AbstractProcessor(Adapter adapter, Request coyoteRequest, Response coyoteResponse) {
+        this.adapter = adapter;
         asyncStateMachine = new AsyncStateMachine(this);
         request = coyoteRequest;
         response = coyoteResponse;
@@ -80,7 +81,10 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
     protected void setErrorState(ErrorState errorState, Throwable t) {
         boolean blockIo = this.errorState.isIoAllowed() && !errorState.isIoAllowed();
         this.errorState = this.errorState.getMostSevere(errorState);
-        if (response.getStatus() < 400) {
+        // Don't change the status code for IOException since that is almost
+        // certainly a client disconnect in which case it is preferable to keep
+        // the original status code http://markmail.org/message/4cxpwmxhtgnrwh7n
+        if (response.getStatus() < 400 && !(t instanceof IOException)) {
             response.setStatus(500);
         }
         if (t != null) {
@@ -92,7 +96,10 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
             // have been completed. Dispatch to a container thread to do the
             // clean-up. Need to do it this way to ensure that all the necessary
             // clean-up is performed.
-            getLog().info(sm.getString("abstractProcessor.nonContainerThreadError"), t);
+            asyncStateMachine.asyncMustError();
+            if (getLog().isDebugEnabled()) {
+                getLog().debug(sm.getString("abstractProcessor.nonContainerThreadError"), t);
+            }
             processSocketEvent(SocketEvent.ERROR, true);
         }
     }
@@ -106,16 +113,6 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
     @Override
     public Request getRequest() {
         return request;
-    }
-
-
-    /**
-     * Set the associated adapter.
-     *
-     * @param adapter the new adapter
-     */
-    public void setAdapter(Adapter adapter) {
-        this.adapter = adapter;
     }
 
 
@@ -181,9 +178,9 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
 
 
     @Override
-    public final SocketState dispatch(SocketEvent socketEvent) {
-        //更新状态机
-        if (socketEvent == SocketEvent.OPEN_WRITE && response.getWriteListener() != null) {
+    public final SocketState dispatch(SocketEvent status) {
+
+        if (status == SocketEvent.OPEN_WRITE && response.getWriteListener() != null) {
             asyncStateMachine.asyncOperation();
             try {
                 if (flushBufferedWrite()) {
@@ -193,12 +190,12 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
                 if (getLog().isDebugEnabled()) {
                     getLog().debug("Unable to write async data.", ioe);
                 }
-                socketEvent = SocketEvent.ERROR;
+                status = SocketEvent.ERROR;
                 request.setAttribute(RequestDispatcher.ERROR_EXCEPTION, ioe);
             }
-        } else if (socketEvent == SocketEvent.OPEN_READ && request.getReadListener() != null) {
-            dispatchNonBlockingRead();// asyncStateMachine.asyncOperation()
-        } else if (socketEvent == SocketEvent.ERROR) {
+        } else if (status == SocketEvent.OPEN_READ && request.getReadListener() != null) {
+            dispatchNonBlockingRead();
+        } else if (status == SocketEvent.ERROR) {
             // An I/O error occurred on a non-container thread. This includes:
             // - read/write timeouts fired by the Poller (NIO & APR)
             // - completion handler failures in NIO2
@@ -222,8 +219,7 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
         RequestInfo rp = request.getRequestProcessor();
         try {
             rp.setStage(org.apache.coyote.Constants.STAGE_SERVICE);
-            //调用读写监听等逻辑
-            if (!getAdapter().asyncDispatch(request, response, socketEvent)) {
+            if (!getAdapter().asyncDispatch(request, response, status)) {
                 setErrorState(ErrorState.CLOSE_NOW, null);
             }
         } catch (InterruptedIOException e) {
@@ -239,7 +235,7 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
         if (getErrorState().isError()) {
             request.updateCounters();
             return SocketState.CLOSED;
-        } else if (isAsync()) {//AsyncState.DISPATCHED状态下isAsync为false
+        } else if (isAsync()) {
             return SocketState.LONG;
         } else {
             request.updateCounters();
@@ -303,6 +299,10 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
             ((AtomicBoolean) param).set(getErrorState().isError());
             break;
         }
+        case IS_IO_ALLOWED: {
+            ((AtomicBoolean) param).set(getErrorState().isIoAllowed());
+            break;
+        }
         case CLOSE_NOW: {
             // Prevent further writes to the response
             setSwallowResponse();
@@ -364,7 +364,11 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
             break;
         }
         case REQ_SSL_CERTIFICATE: {
-            sslReHandShake();
+            try {
+                sslReHandShake();
+            } catch (IOException ioe) {
+                setErrorState(ErrorState.CLOSE_CONNECTION_NOW, ioe);
+            }
             break;
         }
 
@@ -484,6 +488,18 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
         }
         case PUSH_REQUEST: {
             doPush((Request) param);
+            break;
+        }
+
+        // Servlet 4.0 Trailers
+        case IS_TRAILER_FIELDS_READY: {
+            AtomicBoolean result = (AtomicBoolean) param;
+            result.set(isTrailerFieldsReady());
+            break;
+        }
+        case IS_TRAILER_FIELDS_SUPPORTED: {
+            AtomicBoolean result = (AtomicBoolean) param;
+            result.set(isTrailerFieldsSupported());
             break;
         }
         }
@@ -626,8 +642,12 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
     /**
      * Processors that can perform a TLS re-handshake (e.g. HTTP/1.1) should
      * override this method and implement the re-handshake.
+     *
+     * @throws IOException If authentication is required then there will be I/O
+     *                     with the client and this exception will be thrown if
+     *                     that goes wrong
      */
-    protected void sslReHandShake() {
+    protected void sslReHandShake() throws IOException {
         // NO-OP
     }
 
@@ -757,6 +777,21 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
     protected void doPush(Request pushTarget) {
         throw new UnsupportedOperationException(
                 sm.getString("abstractProcessor.pushrequest.notsupported"));
+    }
+
+
+    protected abstract boolean isTrailerFieldsReady();
+
+
+    /**
+     * Protocols that support trailer fields should override this method and
+     * return {@code true}.
+     *
+     * @return {@code true} if trailer fields are supported by this processor,
+     *         otherwise {@code false}.
+     */
+    protected boolean isTrailerFieldsSupported() {
+        return false;
     }
 
 

@@ -18,11 +18,10 @@ package org.apache.catalina.mbeans;
 
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 
-import javax.management.MBeanException;
 import javax.management.MalformedObjectNameException;
 import javax.management.ObjectName;
-import javax.management.RuntimeOperationsException;
 
 import org.apache.catalina.Group;
 import org.apache.catalina.Role;
@@ -39,22 +38,6 @@ import org.apache.tomcat.util.modeler.Registry;
  * @author Craig R. McClanahan
  */
 public class MemoryUserDatabaseMBean extends BaseModelMBean {
-
-    // ----------------------------------------------------------- Constructors
-
-    /**
-     * Construct a <code>ModelMBean</code> with default
-     * <code>ModelMBeanInfo</code> information.
-     *
-     * @exception MBeanException if the initializer of an object
-     *  throws an exception
-     * @exception RuntimeOperationsException if an IllegalArgumentException
-     *  occurs
-     */
-    public MemoryUserDatabaseMBean() throws MBeanException, RuntimeOperationsException {
-        super();
-    }
-
 
     // ----------------------------------------------------- Instance Variables
 
@@ -95,7 +78,7 @@ public class MemoryUserDatabaseMBean extends BaseModelMBean {
      */
     public String[] getGroups() {
         UserDatabase database = (UserDatabase) this.resource;
-        ArrayList<String> results = new ArrayList<>();
+        List<String> results = new ArrayList<>();
         Iterator<Group> groups = database.getGroups();
         while (groups.hasNext()) {
             Group group = groups.next();
@@ -110,7 +93,7 @@ public class MemoryUserDatabaseMBean extends BaseModelMBean {
      */
     public String[] getRoles() {
         UserDatabase database = (UserDatabase) this.resource;
-        ArrayList<String> results = new ArrayList<>();
+        List<String> results = new ArrayList<>();
         Iterator<Role> roles = database.getRoles();
         while (roles.hasNext()) {
             Role role = roles.next();
@@ -125,7 +108,7 @@ public class MemoryUserDatabaseMBean extends BaseModelMBean {
      */
     public String[] getUsers() {
         UserDatabase database = (UserDatabase) this.resource;
-        ArrayList<String> results = new ArrayList<>();
+        List<String> results = new ArrayList<>();
         Iterator<User> users = database.getUsers();
         while (users.hasNext()) {
             User user = users.next();

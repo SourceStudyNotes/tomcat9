@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.jasper.compiler;
 
 import java.io.ByteArrayOutputStream;
@@ -22,6 +21,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.util.Map;
 import java.util.StringTokenizer;
 
 import org.apache.jasper.Constants;
@@ -118,7 +118,7 @@ public class AntCompiler extends Compiler {
      * Compile the servlet from .java file to .class file
      */
     @Override
-    protected void generateClass(String[] smap)
+    protected void generateClass(Map<String,SmapStratum> smaps)
         throws FileNotFoundException, JasperException, Exception {
 
         long t1 = 0;
@@ -250,7 +250,10 @@ public class AntCompiler extends Compiler {
 
         if (!ctxt.keepGenerated()) {
             File javaFile = new File(javaFileName);
-            javaFile.delete();
+            if (!javaFile.delete()) {
+                throw new JasperException(Localizer.getMessage(
+                        "jsp.warning.compiler.javafile.delete.fail", javaFile));
+            }
         }
 
         if (be != null) {
@@ -279,8 +282,8 @@ public class AntCompiler extends Compiler {
         }
 
         // JSR45 Support
-        if (! options.isSmapSuppressed()) {
-            SmapUtil.installSmap(smap);
+        if (!options.isSmapSuppressed()) {
+            SmapUtil.installSmap(smaps);
         }
     }
 

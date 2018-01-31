@@ -19,6 +19,7 @@ package org.apache.catalina.core;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -212,7 +213,7 @@ public class StandardHost extends ContainerBase implements Host {
      */
     @Override
     public String getAppBase() {
-        return (this.appBase);
+        return this.appBase;
     }
 
 
@@ -272,9 +273,7 @@ public class StandardHost extends ContainerBase implements Host {
      */
     @Override
     public String getXmlBase() {
-
-        return (this.xmlBase);
-
+        return this.xmlBase;
     }
 
 
@@ -288,11 +287,9 @@ public class StandardHost extends ContainerBase implements Host {
      */
     @Override
     public void setXmlBase(String xmlBase) {
-
         String oldXmlBase = this.xmlBase;
         this.xmlBase = xmlBase;
         support.firePropertyChange("xmlBase", oldXmlBase, this.xmlBase);
-
     }
 
 
@@ -354,9 +351,7 @@ public class StandardHost extends ContainerBase implements Host {
      */
     @Override
     public boolean getAutoDeploy() {
-
-        return (this.autoDeploy);
-
+        return this.autoDeploy;
     }
 
 
@@ -382,9 +377,7 @@ public class StandardHost extends ContainerBase implements Host {
      */
     @Override
     public String getConfigClass() {
-
-        return (this.configClass);
-
+        return this.configClass;
     }
 
 
@@ -410,9 +403,7 @@ public class StandardHost extends ContainerBase implements Host {
      * for new web applications.
      */
     public String getContextClass() {
-
-        return (this.contextClass);
-
+        return this.contextClass;
     }
 
 
@@ -439,9 +430,7 @@ public class StandardHost extends ContainerBase implements Host {
      */
     @Override
     public boolean getDeployOnStartup() {
-
-        return (this.deployOnStartup);
-
+        return this.deployOnStartup;
     }
 
 
@@ -465,9 +454,7 @@ public class StandardHost extends ContainerBase implements Host {
      * @return <code>true</code> if XML context descriptors should be deployed.
      */
     public boolean isDeployXML() {
-
         return deployXML;
-
     }
 
 
@@ -477,9 +464,7 @@ public class StandardHost extends ContainerBase implements Host {
      * @param deployXML <code>true</code> if context descriptors should be deployed
      */
     public void setDeployXML(boolean deployXML) {
-
         this.deployXML = deployXML;
-
     }
 
 
@@ -487,9 +472,7 @@ public class StandardHost extends ContainerBase implements Host {
      * @return the copy XML config file flag for this component.
      */
     public boolean isCopyXML() {
-
         return this.copyXML;
-
     }
 
 
@@ -499,9 +482,7 @@ public class StandardHost extends ContainerBase implements Host {
      * @param copyXML The new copy XML flag
      */
     public void setCopyXML(boolean copyXML) {
-
         this.copyXML = copyXML;
-
     }
 
 
@@ -510,9 +491,7 @@ public class StandardHost extends ContainerBase implements Host {
      * for new web applications.
      */
     public String getErrorReportValveClass() {
-
-        return (this.errorReportValveClass);
-
+        return this.errorReportValveClass;
     }
 
 
@@ -539,9 +518,7 @@ public class StandardHost extends ContainerBase implements Host {
      */
     @Override
     public String getName() {
-
-        return (name);
-
+        return name;
     }
 
 
@@ -573,9 +550,7 @@ public class StandardHost extends ContainerBase implements Host {
      * @return <code>true</code> if WARs should be unpacked on deployment.
      */
     public boolean isUnpackWARs() {
-
-        return (unpackWARs);
-
+        return unpackWARs;
     }
 
 
@@ -585,9 +560,7 @@ public class StandardHost extends ContainerBase implements Host {
      * @param unpackWARs <code>true</code> to unpack WARs on deployment
      */
     public void setUnpackWARs(boolean unpackWARs) {
-
         this.unpackWARs = unpackWARs;
-
     }
 
 
@@ -595,8 +568,7 @@ public class StandardHost extends ContainerBase implements Host {
      * @return host work directory base.
      */
     public String getWorkDir() {
-
-        return (workDir);
+        return workDir;
     }
 
 
@@ -606,7 +578,6 @@ public class StandardHost extends ContainerBase implements Host {
      * @param workDir the new base work folder for this host
      */
     public void setWorkDir(String workDir) {
-
         this.workDir = workDir;
     }
 
@@ -705,9 +676,7 @@ public class StandardHost extends ContainerBase implements Host {
                     return;
             }
             // Add this alias to the list
-            String newAliases[] = new String[aliases.length + 1];
-            for (int i = 0; i < aliases.length; i++)
-                newAliases[i] = aliases[i];
+            String newAliases[] = Arrays.copyOf(aliases, aliases.length + 1);
             newAliases[aliases.length] = alias;
             aliases = newAliases;
         }
@@ -787,11 +756,9 @@ public class StandardHost extends ContainerBase implements Host {
      */
     @Override
     public String[] findAliases() {
-
         synchronized (aliasesLock) {
-            return (this.aliases);
+            return this.aliases;
         }
-
     }
 
 

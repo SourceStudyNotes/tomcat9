@@ -1,0 +1,114 @@
+31-Jan-2018 17:01:51.508 信息 [main] org.apache.catalina.startup.VersionLoggerListener.log Server version:        Apache Tomcat/9.0.0.M21
+31-Jan-2018 17:01:51.514 信息 [main] org.apache.catalina.startup.VersionLoggerListener.log Server built:          9.0.0.M21
+31-Jan-2018 17:01:51.514 信息 [main] org.apache.catalina.startup.VersionLoggerListener.log Server number:         9.0.0.M21
+31-Jan-2018 17:01:51.514 信息 [main] org.apache.catalina.startup.VersionLoggerListener.log OS Name:               Mac OS X
+31-Jan-2018 17:01:51.514 信息 [main] org.apache.catalina.startup.VersionLoggerListener.log OS Version:            10.13.2
+31-Jan-2018 17:01:51.514 信息 [main] org.apache.catalina.startup.VersionLoggerListener.log Architecture:          x86_64
+31-Jan-2018 17:01:51.514 信息 [main] org.apache.catalina.startup.VersionLoggerListener.log Java Home:             /Library/Java/JavaVirtualMachines/jdk1.8.0_92.jdk/Contents/Home/jre
+31-Jan-2018 17:01:51.514 信息 [main] org.apache.catalina.startup.VersionLoggerListener.log JVM Version:           1.8.0_92-b14
+31-Jan-2018 17:01:51.514 信息 [main] org.apache.catalina.startup.VersionLoggerListener.log JVM Vendor:            Oracle Corporation
+31-Jan-2018 17:01:51.514 信息 [main] org.apache.catalina.startup.VersionLoggerListener.log CATALINA_BASE:         /Users/wangbin/Documents/git/github/tomcat9/output
+31-Jan-2018 17:01:51.515 信息 [main] org.apache.catalina.startup.VersionLoggerListener.log CATALINA_HOME:         /Users/wangbin/Documents/git/github/tomcat9/output
+31-Jan-2018 17:01:51.516 信息 [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: -Dcatalina.base=/Users/wangbin/Documents/git/github/tomcat9/output
+31-Jan-2018 17:01:51.516 信息 [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: -Dcatalina.home=/Users/wangbin/Documents/git/github/tomcat9/output
+31-Jan-2018 17:01:51.516 信息 [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: -Djava.util.logging.manager=org.apache.juli.ClassLoaderLogManager
+31-Jan-2018 17:01:51.516 信息 [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: -Djava.util.logging.config.file=${catalina.base}/conf/logging.properties
+31-Jan-2018 17:01:51.516 信息 [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: -Djava.library.path=/Users/wangbin/Documents/git/github/tomcat9/output/bin
+31-Jan-2018 17:01:51.516 信息 [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: -javaagent:/Applications/IntelliJ IDEA.app/Contents/lib/idea_rt.jar=61145:/Applications/IntelliJ IDEA.app/Contents/bin
+31-Jan-2018 17:01:51.516 信息 [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: -Dfile.encoding=UTF-8
+31-Jan-2018 17:01:51.516 信息 [main] org.apache.catalina.core.AprLifecycleListener.lifecycleEvent The APR based Apache Tomcat Native library which allows optimal performance in production environments was not found on the java.library.path: [/Users/wangbin/Documents/git/github/tomcat9/output/bin]
+31-Jan-2018 17:01:51.738 信息 [main] org.apache.coyote.AbstractProtocol.init Initializing ProtocolHandler ["http-nio-8080"]
+31-Jan-2018 17:01:51.807 信息 [main] org.apache.tomcat.util.net.NioSelectorPool.getSharedSelector Using a shared selector for servlet write/read
+31-Jan-2018 17:01:51.809 信息 [main] org.apache.coyote.AbstractProtocol.init Initializing ProtocolHandler ["ajp-nio-8009"]
+31-Jan-2018 17:01:51.811 信息 [main] org.apache.tomcat.util.net.NioSelectorPool.getSharedSelector Using a shared selector for servlet write/read
+31-Jan-2018 17:01:51.811 信息 [main] org.apache.catalina.startup.Catalina.load Initialization processed in 915 ms
+31-Jan-2018 17:01:51.841 信息 [main] org.apache.catalina.core.StandardService.startInternal Starting service [Catalina]
+31-Jan-2018 17:01:51.841 信息 [main] org.apache.catalina.core.StandardEngine.startInternal Starting Servlet Engine: Apache Tomcat/9.0.0.M21
+31-Jan-2018 17:01:51.851 信息 [main] org.apache.catalina.startup.HostConfig.deployDirectory Deploying web application directory [/Users/wangbin/Documents/git/github/tomcat9/output/webapps/docs]
+31-Jan-2018 17:02:00.262 信息 [main] org.apache.jasper.servlet.TldScanner.scanJars At least one JAR was scanned for TLDs yet contained no TLDs. Enable debug logging for this logger for a complete list of JARs that were scanned but no TLDs were found in them. Skipping unneeded JARs during scanning can improve startup time and JSP compilation time.
+31-Jan-2018 17:02:00.293 信息 [main] org.apache.catalina.startup.HostConfig.deployDirectory Deployment of web application directory [/Users/wangbin/Documents/git/github/tomcat9/output/webapps/docs] has finished in [8,442] ms
+31-Jan-2018 17:02:00.293 信息 [main] org.apache.catalina.startup.HostConfig.deployDirectory Deploying web application directory [/Users/wangbin/Documents/git/github/tomcat9/output/webapps/manager]
+31-Jan-2018 17:02:00.363 信息 [main] org.apache.catalina.startup.HostConfig.deployDirectory Deployment of web application directory [/Users/wangbin/Documents/git/github/tomcat9/output/webapps/manager] has finished in [70] ms
+31-Jan-2018 17:02:00.364 信息 [main] org.apache.catalina.startup.HostConfig.deployDirectory Deploying web application directory [/Users/wangbin/Documents/git/github/tomcat9/output/webapps/examples]
+31-Jan-2018 17:02:03.939 信息 [main] org.apache.jasper.servlet.TldScanner.scanJars At least one JAR was scanned for TLDs yet contained no TLDs. Enable debug logging for this logger for a complete list of JARs that were scanned but no TLDs were found in them. Skipping unneeded JARs during scanning can improve startup time and JSP compilation time.
+31-Jan-2018 17:02:03.952 信息 [main] org.apache.catalina.startup.HostConfig.deployDirectory Deployment of web application directory [/Users/wangbin/Documents/git/github/tomcat9/output/webapps/examples] has finished in [3,589] ms
+31-Jan-2018 17:02:03.953 信息 [main] org.apache.catalina.startup.HostConfig.deployDirectory Deploying web application directory [/Users/wangbin/Documents/git/github/tomcat9/output/webapps/ROOT]
+31-Jan-2018 17:02:07.154 信息 [main] org.apache.jasper.servlet.TldScanner.scanJars At least one JAR was scanned for TLDs yet contained no TLDs. Enable debug logging for this logger for a complete list of JARs that were scanned but no TLDs were found in them. Skipping unneeded JARs during scanning can improve startup time and JSP compilation time.
+31-Jan-2018 17:02:07.159 信息 [main] org.apache.catalina.startup.HostConfig.deployDirectory Deployment of web application directory [/Users/wangbin/Documents/git/github/tomcat9/output/webapps/ROOT] has finished in [3,205] ms
+31-Jan-2018 17:02:07.159 信息 [main] org.apache.catalina.startup.HostConfig.deployDirectory Deploying web application directory [/Users/wangbin/Documents/git/github/tomcat9/output/webapps/host-manager]
+31-Jan-2018 17:02:07.247 信息 [main] org.apache.catalina.startup.HostConfig.deployDirectory Deployment of web application directory [/Users/wangbin/Documents/git/github/tomcat9/output/webapps/host-manager] has finished in [88] ms
+31-Jan-2018 17:02:07.249 信息 [main] org.apache.coyote.AbstractProtocol.start Starting ProtocolHandler ["http-nio-8080"]
+31-Jan-2018 17:02:07.257 信息 [main] org.apache.coyote.AbstractProtocol.start Starting ProtocolHandler ["ajp-nio-8009"]
+31-Jan-2018 17:02:07.258 信息 [main] org.apache.catalina.startup.Catalina.start Server startup in 15447 ms
+31-Jan-2018 17:02:54.723 信息 [Thread-5] org.apache.coyote.AbstractProtocol.pause Pausing ProtocolHandler ["http-nio-8080"]
+31-Jan-2018 17:02:56.731 信息 [Thread-5] org.apache.coyote.AbstractProtocol.pause Pausing ProtocolHandler ["ajp-nio-8009"]
+31-Jan-2018 17:02:58.735 信息 [Thread-5] org.apache.catalina.core.StandardService.stopInternal Stopping service [Catalina]
+31-Jan-2018 17:02:58.771 信息 [Thread-5] org.apache.coyote.AbstractProtocol.stop Stopping ProtocolHandler ["http-nio-8080"]
+31-Jan-2018 17:02:59.879 信息 [Thread-5] org.apache.coyote.AbstractProtocol.stop Stopping ProtocolHandler ["ajp-nio-8009"]
+31-Jan-2018 17:02:59.885 信息 [Thread-5] org.apache.coyote.AbstractProtocol.destroy Destroying ProtocolHandler ["http-nio-8080"]
+31-Jan-2018 17:02:59.888 严重 [Thread-5] org.apache.catalina.util.LifecycleBase.handleSubClassException Failed to destroy component [Connector[HTTP/1.1-8080]]
+ org.apache.catalina.LifecycleException: Protocol handler destroy failed
+	at org.apache.catalina.connector.Connector.destroyInternal(Connector.java:994)
+	at org.apache.catalina.util.LifecycleBase.destroy(LifecycleBase.java:322)
+	at org.apache.catalina.core.StandardService.destroyInternal(StandardService.java:543)
+	at org.apache.catalina.util.LifecycleBase.destroy(LifecycleBase.java:322)
+	at org.apache.catalina.core.StandardServer.destroyInternal(StandardServer.java:883)
+	at org.apache.catalina.util.LifecycleBase.destroy(LifecycleBase.java:322)
+	at org.apache.catalina.startup.Catalina.stop(Catalina.java:730)
+	at org.apache.catalina.startup.Catalina$CatalinaShutdownHook.run(Catalina.java:830)
+Caused by: java.io.IOException: Unknown error: 316
+	at sun.nio.ch.NativeThread.signal(Native Method)
+	at sun.nio.ch.ServerSocketChannelImpl.implCloseSelectableChannel(ServerSocketChannelImpl.java:292)
+	at java.nio.channels.spi.AbstractSelectableChannel.implCloseChannel(AbstractSelectableChannel.java:234)
+	at java.nio.channels.spi.AbstractInterruptibleChannel.close(AbstractInterruptibleChannel.java:115)
+	at sun.nio.ch.ServerSocketAdaptor.close(ServerSocketAdaptor.java:137)
+	at org.apache.tomcat.util.net.NioEndpoint.unbind(NioEndpoint.java:305)
+	at org.apache.tomcat.util.net.AbstractEndpoint.destroy(AbstractEndpoint.java:1018)
+	at org.apache.coyote.AbstractProtocol.destroy(AbstractProtocol.java:704)
+	at org.apache.catalina.connector.Connector.destroyInternal(Connector.java:990)
+	... 7 more
+
+31-Jan-2018 17:02:59.889 信息 [Thread-5] org.apache.coyote.AbstractProtocol.destroy Destroying ProtocolHandler ["ajp-nio-8009"]
+31-Jan-2018 17:05:01.753 信息 [main] org.apache.catalina.startup.VersionLoggerListener.log Server version:        Apache Tomcat/9.0.4
+31-Jan-2018 17:05:01.759 信息 [main] org.apache.catalina.startup.VersionLoggerListener.log Server built:          9.0.4
+31-Jan-2018 17:05:01.759 信息 [main] org.apache.catalina.startup.VersionLoggerListener.log Server number:         9.0.4
+31-Jan-2018 17:05:01.760 信息 [main] org.apache.catalina.startup.VersionLoggerListener.log OS Name:               Mac OS X
+31-Jan-2018 17:05:01.760 信息 [main] org.apache.catalina.startup.VersionLoggerListener.log OS Version:            10.13.2
+31-Jan-2018 17:05:01.760 信息 [main] org.apache.catalina.startup.VersionLoggerListener.log Architecture:          x86_64
+31-Jan-2018 17:05:01.760 信息 [main] org.apache.catalina.startup.VersionLoggerListener.log Java Home:             /Library/Java/JavaVirtualMachines/jdk1.8.0_92.jdk/Contents/Home/jre
+31-Jan-2018 17:05:01.760 信息 [main] org.apache.catalina.startup.VersionLoggerListener.log JVM Version:           1.8.0_92-b14
+31-Jan-2018 17:05:01.760 信息 [main] org.apache.catalina.startup.VersionLoggerListener.log JVM Vendor:            Oracle Corporation
+31-Jan-2018 17:05:01.760 信息 [main] org.apache.catalina.startup.VersionLoggerListener.log CATALINA_BASE:         /Users/wangbin/Documents/git/github/tomcat9/output
+31-Jan-2018 17:05:01.760 信息 [main] org.apache.catalina.startup.VersionLoggerListener.log CATALINA_HOME:         /Users/wangbin/Documents/git/github/tomcat9/output
+31-Jan-2018 17:05:01.762 信息 [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: -Dcatalina.base=/Users/wangbin/Documents/git/github/tomcat9/output
+31-Jan-2018 17:05:01.762 信息 [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: -Dcatalina.home=/Users/wangbin/Documents/git/github/tomcat9/output
+31-Jan-2018 17:05:01.762 信息 [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: -Djava.util.logging.manager=org.apache.juli.ClassLoaderLogManager
+31-Jan-2018 17:05:01.762 信息 [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: -Djava.util.logging.config.file=${catalina.base}/conf/logging.properties
+31-Jan-2018 17:05:01.762 信息 [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: -Djava.library.path=/Users/wangbin/Documents/git/github/tomcat9/output/bin
+31-Jan-2018 17:05:01.762 信息 [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: -javaagent:/Applications/IntelliJ IDEA.app/Contents/lib/idea_rt.jar=61224:/Applications/IntelliJ IDEA.app/Contents/bin
+31-Jan-2018 17:05:01.762 信息 [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: -Dfile.encoding=UTF-8
+31-Jan-2018 17:05:01.763 信息 [main] org.apache.catalina.core.AprLifecycleListener.lifecycleEvent The APR based Apache Tomcat Native library which allows optimal performance in production environments was not found on the java.library.path: [/Users/wangbin/Documents/git/github/tomcat9/output/bin]
+31-Jan-2018 17:05:02.045 信息 [main] org.apache.coyote.AbstractProtocol.init Initializing ProtocolHandler ["http-nio-8080"]
+31-Jan-2018 17:05:02.131 信息 [main] org.apache.tomcat.util.net.NioSelectorPool.getSharedSelector Using a shared selector for servlet write/read
+31-Jan-2018 17:05:02.141 信息 [main] org.apache.coyote.AbstractProtocol.init Initializing ProtocolHandler ["ajp-nio-8009"]
+31-Jan-2018 17:05:02.142 信息 [main] org.apache.tomcat.util.net.NioSelectorPool.getSharedSelector Using a shared selector for servlet write/read
+31-Jan-2018 17:05:02.143 信息 [main] org.apache.catalina.startup.Catalina.load Initialization processed in 820 ms
+31-Jan-2018 17:05:02.176 信息 [main] org.apache.catalina.core.StandardService.startInternal Starting service [Catalina]
+31-Jan-2018 17:05:02.176 信息 [main] org.apache.catalina.core.StandardEngine.startInternal Starting Servlet Engine: Apache Tomcat/9.0.4
+31-Jan-2018 17:05:02.195 信息 [main] org.apache.catalina.startup.HostConfig.deployDirectory Deploying web application directory [/Users/wangbin/Documents/git/github/tomcat9/output/webapps/docs]
+31-Jan-2018 17:05:10.549 信息 [main] org.apache.jasper.servlet.TldScanner.scanJars At least one JAR was scanned for TLDs yet contained no TLDs. Enable debug logging for this logger for a complete list of JARs that were scanned but no TLDs were found in them. Skipping unneeded JARs during scanning can improve startup time and JSP compilation time.
+31-Jan-2018 17:05:10.573 信息 [main] org.apache.catalina.startup.HostConfig.deployDirectory Deployment of web application directory [/Users/wangbin/Documents/git/github/tomcat9/output/webapps/docs] has finished in [8,379] ms
+31-Jan-2018 17:05:10.574 信息 [main] org.apache.catalina.startup.HostConfig.deployDirectory Deploying web application directory [/Users/wangbin/Documents/git/github/tomcat9/output/webapps/manager]
+31-Jan-2018 17:05:10.628 信息 [main] org.apache.catalina.startup.HostConfig.deployDirectory Deployment of web application directory [/Users/wangbin/Documents/git/github/tomcat9/output/webapps/manager] has finished in [53] ms
+31-Jan-2018 17:05:10.628 信息 [main] org.apache.catalina.startup.HostConfig.deployDirectory Deploying web application directory [/Users/wangbin/Documents/git/github/tomcat9/output/webapps/examples]
+31-Jan-2018 17:05:14.107 信息 [main] org.apache.jasper.servlet.TldScanner.scanJars At least one JAR was scanned for TLDs yet contained no TLDs. Enable debug logging for this logger for a complete list of JARs that were scanned but no TLDs were found in them. Skipping unneeded JARs during scanning can improve startup time and JSP compilation time.
+31-Jan-2018 17:05:14.123 信息 [main] org.apache.catalina.startup.HostConfig.deployDirectory Deployment of web application directory [/Users/wangbin/Documents/git/github/tomcat9/output/webapps/examples] has finished in [3,495] ms
+31-Jan-2018 17:05:14.123 信息 [main] org.apache.catalina.startup.HostConfig.deployDirectory Deploying web application directory [/Users/wangbin/Documents/git/github/tomcat9/output/webapps/ROOT]
+31-Jan-2018 17:05:17.435 信息 [main] org.apache.jasper.servlet.TldScanner.scanJars At least one JAR was scanned for TLDs yet contained no TLDs. Enable debug logging for this logger for a complete list of JARs that were scanned but no TLDs were found in them. Skipping unneeded JARs during scanning can improve startup time and JSP compilation time.
+31-Jan-2018 17:05:17.438 信息 [main] org.apache.catalina.startup.HostConfig.deployDirectory Deployment of web application directory [/Users/wangbin/Documents/git/github/tomcat9/output/webapps/ROOT] has finished in [3,315] ms
+31-Jan-2018 17:05:17.438 信息 [main] org.apache.catalina.startup.HostConfig.deployDirectory Deploying web application directory [/Users/wangbin/Documents/git/github/tomcat9/output/webapps/host-manager]
+31-Jan-2018 17:05:17.501 信息 [main] org.apache.catalina.startup.HostConfig.deployDirectory Deployment of web application directory [/Users/wangbin/Documents/git/github/tomcat9/output/webapps/host-manager] has finished in [63] ms
+31-Jan-2018 17:05:17.575 信息 [main] org.apache.coyote.AbstractProtocol.start Starting ProtocolHandler ["http-nio-8080"]
+31-Jan-2018 17:05:17.583 信息 [main] org.apache.coyote.AbstractProtocol.start Starting ProtocolHandler ["ajp-nio-8009"]
+31-Jan-2018 17:05:17.585 信息 [main] org.apache.catalina.startup.Catalina.start Server startup in 15442 ms
+31-Jan-2018 17:07:58.606 信息 [Thread-5] org.apache.coyote.AbstractProtocol.pause Pausing ProtocolHandler ["http-nio-8080"]

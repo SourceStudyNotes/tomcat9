@@ -7,7 +7,7 @@
     <parent>
         <artifactId>tomcat</artifactId>
         <groupId>org.apache</groupId>
-        <version>9.0.0.M21</version>
+        <version>9.0.4</version>
     </parent>
     <artifactId>tomcat-all</artifactId>
     <name>tomcat-all</name>

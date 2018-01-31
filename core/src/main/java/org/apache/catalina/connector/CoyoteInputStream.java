@@ -207,9 +207,7 @@ public class CoyoteInputStream extends ServletInputStream {
         ib.setReadListener(listener);
     }
 
-    /**
-     * 如果有读监听函数，每次读数据的时候，如果发现数据不够用就将连接注册到selector上。
-     */
+
     private void checkNonBlockingRead() {
         if (!ib.isBlocking() && !ib.isReady()) {
             throw new IllegalStateException(sm.getString("coyoteInputStream.nbNotready"));

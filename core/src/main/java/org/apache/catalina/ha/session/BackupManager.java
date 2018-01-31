@@ -17,7 +17,6 @@
 package org.apache.catalina.ha.session;
 
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.Set;
 
 import org.apache.catalina.DistributedManager;
@@ -201,8 +200,24 @@ public class BackupManager extends ClusterManagerBase
         this.mapSendOptions = mapSendOptions;
     }
 
+    public void setMapSendOptions(String mapSendOptions) {
+
+        int value = Channel.parseSendOptions(mapSendOptions);
+        if (value > 0) {
+            this.setMapSendOptions(value);
+        }
+    }
+
     public int getMapSendOptions() {
         return mapSendOptions;
+    }
+
+    /**
+     * returns the SendOptions as a comma separated list of names
+     * @return a comma separated list of the option names
+     */
+    public String getMapSendOptionsName(){
+        return Channel.getSendOptionsAsString(mapSendOptions);
     }
 
     public void setRpcTimeout(long rpcTimeout) {
@@ -257,9 +272,8 @@ public class BackupManager extends ClusterManagerBase
         Set<String> sessionIds = new HashSet<>();
         LazyReplicatedMap<String,Session> map =
                 (LazyReplicatedMap<String,Session>)sessions;
-        Iterator<String> keys = map.keySetFull().iterator();
-        while (keys.hasNext()) {
-            sessionIds.add(keys.next());
+        for (String id : map.keySetFull()) {
+            sessionIds.add(id);
         }
         return sessionIds;
     }

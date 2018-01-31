@@ -18,6 +18,7 @@ package org.apache.tomcat.util.descriptor.web;
 
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 
 import org.apache.tomcat.util.buf.UDecoder;
 
@@ -112,9 +113,7 @@ public class SecurityCollection extends XmlEncodingBase implements Serializable 
      * @return the description of this web resource collection.
      */
     public String getDescription() {
-
-        return (this.description);
-
+        return this.description;
     }
 
 
@@ -124,9 +123,7 @@ public class SecurityCollection extends XmlEncodingBase implements Serializable 
      * @param description The new description
      */
     public void setDescription(String description) {
-
         this.description = description;
-
     }
 
 
@@ -134,9 +131,7 @@ public class SecurityCollection extends XmlEncodingBase implements Serializable 
      * @return the name of this web resource collection.
      */
     public String getName() {
-
-        return (this.name);
-
+        return this.name;
     }
 
 
@@ -146,9 +141,7 @@ public class SecurityCollection extends XmlEncodingBase implements Serializable 
      * @param name The new name
      */
     public void setName(String name) {
-
         this.name = name;
-
     }
 
 
@@ -181,9 +174,7 @@ public class SecurityCollection extends XmlEncodingBase implements Serializable 
 
         if (method == null)
             return;
-        String results[] = new String[methods.length + 1];
-        for (int i = 0; i < methods.length; i++)
-            results[i] = methods[i];
+        String[] results = Arrays.copyOf(methods, methods.length + 1);
         results[methods.length] = method;
         methods = results;
 
@@ -198,9 +189,7 @@ public class SecurityCollection extends XmlEncodingBase implements Serializable 
     public void addOmittedMethod(String method) {
         if (method == null)
             return;
-        String results[] = new String[omittedMethods.length + 1];
-        for (int i = 0; i < omittedMethods.length; i++)
-            results[i] = omittedMethods[i];
+        String[] results = Arrays.copyOf(omittedMethods, omittedMethods.length + 1);
         results[omittedMethods.length] = method;
         omittedMethods = results;
     }
@@ -218,10 +207,7 @@ public class SecurityCollection extends XmlEncodingBase implements Serializable 
             return;
 
         String decodedPattern = UDecoder.URLDecode(pattern);
-        String results[] = new String[patterns.length + 1];
-        for (int i = 0; i < patterns.length; i++) {
-            results[i] = patterns[i];
-        }
+        String[] results = Arrays.copyOf(patterns, patterns.length + 1);
         results[patterns.length] = decodedPattern;
         patterns = results;
     }
@@ -260,9 +246,7 @@ public class SecurityCollection extends XmlEncodingBase implements Serializable 
      * explicitly included.
      */
     public String[] findMethods() {
-
-        return (methods);
-
+        return methods;
     }
 
 
@@ -272,9 +256,7 @@ public class SecurityCollection extends XmlEncodingBase implements Serializable 
      * methods are excluded.
      */
     public String[] findOmittedMethods() {
-
-        return (omittedMethods);
-
+        return omittedMethods;
     }
 
 
@@ -285,13 +267,11 @@ public class SecurityCollection extends XmlEncodingBase implements Serializable 
      * @return <code>true</code> if the pattern is part of the collection
      */
     public boolean findPattern(String pattern) {
-
         for (int i = 0; i < patterns.length; i++) {
             if (patterns[i].equals(pattern))
                 return true;
         }
         return false;
-
     }
 
 
@@ -301,9 +281,7 @@ public class SecurityCollection extends XmlEncodingBase implements Serializable 
      * returned.
      */
     public String[] findPatterns() {
-
-        return (patterns);
-
+        return patterns;
     }
 
 
@@ -402,7 +380,6 @@ public class SecurityCollection extends XmlEncodingBase implements Serializable 
      */
     @Override
     public String toString() {
-
         StringBuilder sb = new StringBuilder("SecurityCollection[");
         sb.append(name);
         if (description != null) {
@@ -410,8 +387,7 @@ public class SecurityCollection extends XmlEncodingBase implements Serializable 
             sb.append(description);
         }
         sb.append("]");
-        return (sb.toString());
-
+        return sb.toString();
     }
 
 

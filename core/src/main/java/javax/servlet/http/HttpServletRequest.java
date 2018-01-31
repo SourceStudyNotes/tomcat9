@@ -172,8 +172,8 @@ public interface HttpServletRequest extends ServletRequest {
      */
     public int getIntHeader(String name);
 
-    public default ServletMapping getServletMapping() {
-        return new ServletMapping() {
+    public default HttpServletMapping getHttpServletMapping() {
+        return new HttpServletMapping() {
 
             @Override
             public String getMatchValue() {
@@ -192,7 +192,7 @@ public interface HttpServletRequest extends ServletRequest {
 
             @Override
             public MappingMatch getMappingMatch() {
-                return MappingMatch.UNKNOWN;
+                return null;
             }
         };
     }
@@ -589,5 +589,24 @@ public interface HttpServletRequest extends ServletRequest {
      */
     public default Map<String,String> getTrailerFields() {
         return Collections.emptyMap();
+    }
+
+    /**
+     * Are trailer fields ready to be read (there may still be no trailers to
+     * read). This method always returns {@code true} if the underlying protocol
+     * does not support trailer fields. Otherwise, {@code true} is returned once
+     * all of the following are true:
+     * <ul>
+     * <li>The application has ready all the request data and an EOF has been
+     *     received or the content-length is zero</li>
+     * <li>All trailer fields, if any, have been received</li>
+     * </ul>
+     *
+     * @return {@code true} if trailers are ready to be read
+     *
+     * @since Servlet 4.0
+     */
+    public default boolean isTrailerFieldsReady() {
+        return false;
     }
 }

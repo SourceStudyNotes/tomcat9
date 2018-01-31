@@ -24,14 +24,16 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.StringTokenizer;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 
 import javax.servlet.http.HttpUpgradeHandler;
 
 import org.apache.coyote.AbstractProtocol;
+import org.apache.coyote.CompressionConfig;
 import org.apache.coyote.Processor;
+import org.apache.coyote.Request;
+import org.apache.coyote.Response;
 import org.apache.coyote.UpgradeProtocol;
 import org.apache.coyote.UpgradeToken;
 import org.apache.coyote.http11.upgrade.InternalHttpUpgradeHandler;
@@ -47,6 +49,8 @@ public abstract class AbstractHttp11Protocol<S> extends AbstractProtocol<S> {
 
     protected static final StringManager sm =
             StringManager.getManager(AbstractHttp11Protocol.class);
+
+    private final CompressionConfig compressionConfig = new CompressionConfig();
 
 
     public AbstractHttp11Protocol(AbstractEndpoint<S,?> endpoint) {
@@ -90,6 +94,53 @@ public abstract class AbstractHttp11Protocol<S> extends AbstractProtocol<S> {
 
     // ------------------------------------------------ HTTP specific properties
     // ------------------------------------------ managed in the ProtocolHandler
+
+    private boolean allowHostHeaderMismatch = false;
+    /**
+     * Will Tomcat accept an HTTP 1.1 request where the host header does not
+     * agree with the host specified (if any) in the request line?
+     *
+     * @return {@code true} if Tomcat will allow such requests, otherwise
+     *         {@code false}
+     */
+    public boolean getAllowHostHeaderMismatch() {
+        return allowHostHeaderMismatch;
+    }
+    /**
+     * Will Tomcat accept an HTTP 1.1 request where the host header does not
+     * agree with the host specified (if any) in the request line?
+     *
+     * @param allowHostHeaderMismatch {@code true} to allow such requests,
+     *                                {@code false} to reject them with a 400
+     */
+    public void setAllowHostHeaderMismatch(boolean allowHostHeaderMismatch) {
+        this.allowHostHeaderMismatch = allowHostHeaderMismatch;
+    }
+
+
+    private boolean rejectIllegalHeaderName = true;
+    /**
+     * If an HTTP request is received that contains an illegal header name (i.e.
+     * the header name is not a token) will the request be rejected (with a 400
+     * response) or will the illegal header be ignored.
+     *
+     * @return {@code true} if the request will be rejected or {@code false} if
+     *         the header will be ignored
+     */
+    public boolean getRejectIllegalHeaderName() { return rejectIllegalHeaderName; }
+    /**
+     * If an HTTP request is received that contains an illegal header name (i.e.
+     * the header name is not a token) should the request be rejected (with a
+     * 400 response) or should the illegal header be ignored.
+     *
+     * @param rejectIllegalHeaderName   {@code true} to reject requests with
+     *                                  illegal header names, {@code false} to
+     *                                  ignore the header
+     */
+    public void setRejectIllegalHeaderName(boolean rejectIllegalHeaderName) {
+        this.rejectIllegalHeaderName = rejectIllegalHeaderName;
+    }
+
 
     private int maxSavePostSize = 4 * 1024;
     /**
@@ -160,127 +211,49 @@ public abstract class AbstractHttp11Protocol<S> extends AbstractProtocol<S> {
     }
 
 
-    private int compressionLevel = 0;
-    /**
-     * Set compression level.
-     *
-     * @param compression One of <code>on</code>, <code>force</code>,
-     *                    <code>off</code> or the minimum compression size in
-     *                    bytes which implies <code>on</code>
-     */
     public void setCompression(String compression) {
-        if (compression.equals("on")) {
-            this.compressionLevel = 1;
-        } else if (compression.equals("force")) {
-            this.compressionLevel = 2;
-        } else if (compression.equals("off")) {
-            this.compressionLevel = 0;
-        } else {
-            try {
-                // Try to parse compression as an int, which would give the
-                // minimum compression size
-                setCompressionMinSize(Integer.parseInt(compression));
-                this.compressionLevel = 1;
-            } catch (Exception e) {
-                this.compressionLevel = 0;
-            }
-        }
+        compressionConfig.setCompression(compression);
     }
-
-
-    /**
-     * Return compression level.
-     *
-     * @return The current compression level in string form (off/on/force)
-     */
     public String getCompression() {
-        switch (compressionLevel) {
-        case 0:
-            return "off";
-        case 1:
-            return "on";
-        case 2:
-            return "force";
-        }
-        return "off";
+        return compressionConfig.getCompression();
     }
     protected int getCompressionLevel() {
-        return compressionLevel;
+        return compressionConfig.getCompressionLevel();
     }
 
 
-    private Pattern noCompressionUserAgents = null;
-    /**
-     * Obtain the String form of the regular expression that defines the user
-     * agents to not use gzip with.
-     *
-     * @return The regular expression as a String
-     */
     public String getNoCompressionUserAgents() {
-        if (noCompressionUserAgents == null) {
-            return null;
-        } else {
-            return noCompressionUserAgents.toString();
-        }
+        return compressionConfig.getNoCompressionUserAgents();
     }
     protected Pattern getNoCompressionUserAgentsPattern() {
-        return noCompressionUserAgents;
+        return compressionConfig.getNoCompressionUserAgentsPattern();
     }
-    /**
-     * Set no compression user agent pattern. Regular expression as supported
-     * by {@link Pattern}. e.g.: <code>gorilla|desesplorer|tigrus</code>.
-     *
-     * @param noCompressionUserAgents The regular expression for user agent
-     *                                strings for which compression should not
-     *                                be applied
-     */
     public void setNoCompressionUserAgents(String noCompressionUserAgents) {
-        if (noCompressionUserAgents == null || noCompressionUserAgents.length() == 0) {
-            this.noCompressionUserAgents = null;
-        } else {
-            this.noCompressionUserAgents =
-                Pattern.compile(noCompressionUserAgents);
-        }
+        compressionConfig.setNoCompressionUserAgents(noCompressionUserAgents);
     }
 
 
-    private String compressibleMimeType = "text/html,text/xml,text/plain,text/css," +
-                    "text/javascript,application/javascript,application/json,application/xml";
-    private String[] compressibleMimeTypes = null;
-    public String getCompressibleMimeType() { return compressibleMimeType; }
+    public String getCompressibleMimeType() {
+        return compressionConfig.getCompressibleMimeType();
+    }
     public void setCompressibleMimeType(String valueS) {
-        compressibleMimeType = valueS;
-        compressibleMimeTypes = null;
+        compressionConfig.setCompressibleMimeType(valueS);
     }
     public String[] getCompressibleMimeTypes() {
-        String[] result = compressibleMimeTypes;
-        if (result != null) {
-            return result;
-        }
-        List<String> values = new ArrayList<>();
-        StringTokenizer tokens = new StringTokenizer(compressibleMimeType, ",");
-        while (tokens.hasMoreTokens()) {
-            String token = tokens.nextToken().trim();
-            if (token.length() > 0) {
-                values.add(token);
-            }
-        }
-        result = values.toArray(new String[values.size()]);
-        compressibleMimeTypes = result;
-        return result;
+        return compressionConfig.getCompressibleMimeTypes();
     }
 
 
-    private int compressionMinSize = 2048;
-    public int getCompressionMinSize() { return compressionMinSize; }
-    /**
-     * Set Minimum size to trigger compression.
-     *
-     * @param compressionMinSize The minimum content length required for
-     *                           compression in bytes
-     */
+    public int getCompressionMinSize() {
+        return compressionConfig.getCompressionMinSize();
+    }
     public void setCompressionMinSize(int compressionMinSize) {
-        this.compressionMinSize = compressionMinSize;
+        compressionConfig.setCompressionMinSize(compressionMinSize);
+    }
+
+
+    public boolean useCompression(Request request, Response response) {
+        return compressionConfig.useCompression(request, response);
     }
 
 
@@ -551,10 +524,22 @@ public abstract class AbstractHttp11Protocol<S> extends AbstractProtocol<S> {
         getEndpoint().addSslHostConfig(sslHostConfig);
     }
 
+
     @Override
     public SSLHostConfig[] findSslHostConfigs() {
         return getEndpoint().findSslHostConfigs();
     }
+
+
+    public void reloadSsslHostConfigs() {
+        getEndpoint().reloadSslHostConfigs();
+    }
+
+
+    public void reloadSsslHostConfig(String hostName) {
+        getEndpoint().reloadSslHostConfig(hostName);
+    }
+
 
     // ----------------------------------------------- HTTPS specific properties
     // -------------------------------------------- Handled via an SSLHostConfig
@@ -934,8 +919,7 @@ public abstract class AbstractHttp11Protocol<S> extends AbstractProtocol<S> {
 
     @Override
     protected Processor createProcessor() {
-        Http11Processor processor = new Http11Processor(this);
-        processor.setAdapter(getAdapter());
+        Http11Processor processor = new Http11Processor(this, adapter);
         return processor;
     }
 

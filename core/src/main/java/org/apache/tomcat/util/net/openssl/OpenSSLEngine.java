@@ -38,8 +38,6 @@ import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSessionBindingEvent;
 import javax.net.ssl.SSLSessionBindingListener;
 import javax.net.ssl.SSLSessionContext;
-import javax.security.cert.CertificateException;
-import javax.security.cert.X509Certificate;
 
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
@@ -151,7 +149,8 @@ public final class OpenSSLEngine extends SSLEngine implements SSLUtil.ProtocolIn
     private volatile String applicationProtocol;
 
     private volatile Certificate[] peerCerts;
-    private volatile X509Certificate[] x509PeerCerts;
+    @Deprecated
+    private volatile javax.security.cert.X509Certificate[] x509PeerCerts;
     private volatile ClientAuthMode clientAuth = ClientAuthMode.NONE;
 
     // SSL Engine status variables
@@ -164,6 +163,7 @@ public final class OpenSSLEngine extends SSLEngine implements SSLUtil.ProtocolIn
     private final String fallbackApplicationProtocol;
     private final OpenSSLSessionContext sessionContext;
     private final boolean alpn;
+    private final boolean initialized;
 
     private String selectedProtocol = null;
 
@@ -173,15 +173,38 @@ public final class OpenSSLEngine extends SSLEngine implements SSLUtil.ProtocolIn
      * Creates a new instance
      *
      * @param sslCtx an OpenSSL {@code SSL_CTX} object
-     * @param alloc the {@link ByteBufAllocator} that will be used by this
-     * engine
+     * @param fallbackApplicationProtocol the fallback application protocol
      * @param clientMode {@code true} if this is used for clients, {@code false}
      * otherwise
      * @param sessionContext the {@link OpenSslSessionContext} this
      * {@link SSLEngine} belongs to.
+     * @param alpn {@code true} if alpn should be used, {@code false}
+     * otherwise
      */
     OpenSSLEngine(long sslCtx, String fallbackApplicationProtocol,
-            boolean clientMode, OpenSSLSessionContext sessionContext, boolean alpn) {
+            boolean clientMode, OpenSSLSessionContext sessionContext,
+            boolean alpn) {
+        this(sslCtx, fallbackApplicationProtocol, clientMode, sessionContext,
+             alpn, false);
+    }
+
+    /**
+     * Creates a new instance
+     *
+     * @param sslCtx an OpenSSL {@code SSL_CTX} object
+     * @param fallbackApplicationProtocol the fallback application protocol
+     * @param clientMode {@code true} if this is used for clients, {@code false}
+     * otherwise
+     * @param sessionContext the {@link OpenSslSessionContext} this
+     * {@link SSLEngine} belongs to.
+     * @param alpn {@code true} if alpn should be used, {@code false}
+     * otherwise
+     * @param initialized {@code true} if this instance gets its protocol,
+     * cipher and client verification from the {@code SSL_CTX} {@code sslCtx}
+     */
+    OpenSSLEngine(long sslCtx, String fallbackApplicationProtocol,
+            boolean clientMode, OpenSSLSessionContext sessionContext, boolean alpn,
+            boolean initialized) {
         if (sslCtx == 0) {
             throw new IllegalArgumentException(sm.getString("engine.noSSLContext"));
         }
@@ -194,6 +217,7 @@ public final class OpenSSLEngine extends SSLEngine implements SSLUtil.ProtocolIn
         this.clientMode = clientMode;
         this.sessionContext = sessionContext;
         this.alpn = alpn;
+        this.initialized = initialized;
     }
 
     @Override
@@ -677,7 +701,10 @@ public final class OpenSSLEngine extends SSLEngine implements SSLUtil.ProtocolIn
     }
 
     @Override
-    public String[] getEnabledCipherSuites() {
+    public synchronized String[] getEnabledCipherSuites() {
+        if (destroyed) {
+            return new String[0];
+        }
         String[] enabled = SSL.getCiphers(ssl);
         if (enabled == null) {
             return new String[0];
@@ -693,9 +720,15 @@ public final class OpenSSLEngine extends SSLEngine implements SSLUtil.ProtocolIn
     }
 
     @Override
-    public void setEnabledCipherSuites(String[] cipherSuites) {
+    public synchronized void setEnabledCipherSuites(String[] cipherSuites) {
+        if (initialized) {
+            return;
+        }
         if (cipherSuites == null) {
             throw new IllegalArgumentException(sm.getString("engine.nullCipherSuite"));
+        }
+        if (destroyed) {
+            return;
         }
         final StringBuilder buf = new StringBuilder();
         for (String cipherSuite : cipherSuites) {
@@ -703,11 +736,11 @@ public final class OpenSSLEngine extends SSLEngine implements SSLUtil.ProtocolIn
                 break;
             }
             String converted = OpenSSLCipherConfigurationParser.jsseToOpenSSL(cipherSuite);
-            if (converted != null) {
-                cipherSuite = converted;
-            }
             if (!AVAILABLE_CIPHER_SUITES.contains(cipherSuite)) {
                 logger.debug(sm.getString("engine.unsupportedCipher", cipherSuite, converted));
+            }
+            if (converted != null) {
+                cipherSuite = converted;
             }
 
             buf.append(cipherSuite);
@@ -733,7 +766,10 @@ public final class OpenSSLEngine extends SSLEngine implements SSLUtil.ProtocolIn
     }
 
     @Override
-    public String[] getEnabledProtocols() {
+    public synchronized String[] getEnabledProtocols() {
+        if (destroyed) {
+            return new String[0];
+        }
         List<String> enabled = new ArrayList<>();
         // Seems like there is no way to explicitly disable SSLv2Hello in OpenSSL so it is always enabled
         enabled.add(Constants.SSL_PROTO_SSLv2Hello);
@@ -762,10 +798,16 @@ public final class OpenSSLEngine extends SSLEngine implements SSLUtil.ProtocolIn
     }
 
     @Override
-    public void setEnabledProtocols(String[] protocols) {
+    public synchronized void setEnabledProtocols(String[] protocols) {
+        if (initialized) {
+            return;
+        }
         if (protocols == null) {
             // This is correct from the API docs
             throw new IllegalArgumentException();
+        }
+        if (destroyed) {
+            return;
         }
         boolean sslv2 = false;
         boolean sslv3 = false;
@@ -1041,12 +1083,14 @@ public final class OpenSSLEngine extends SSLEngine implements SSLUtil.ProtocolIn
 
         @Override
         public byte[] getId() {
-            // We don't cache that to keep memory usage to a minimum.
-            byte[] id = SSL.getSessionId(ssl);
-            if (id == null) {
-                // The id should never be null, if it was null then the SESSION itself was not valid.
-                throw new IllegalStateException(sm.getString("engine.noSession"));
+            byte[] id;
+            synchronized (OpenSSLEngine.this) {
+                if (destroyed) {
+                    throw new IllegalStateException(sm.getString("engine.noSession"));
+                }
+                id = SSL.getSessionId(ssl);
             }
+
             return id;
         }
 
@@ -1058,7 +1102,14 @@ public final class OpenSSLEngine extends SSLEngine implements SSLUtil.ProtocolIn
         @Override
         public long getCreationTime() {
             // We need to multiply by 1000 as OpenSSL uses seconds and we need milliseconds.
-            return SSL.getTime(ssl) * 1000L;
+            long creationTime = 0;
+            synchronized (OpenSSLEngine.this) {
+                if (destroyed) {
+                    throw new IllegalStateException(sm.getString("engine.noSession"));
+                }
+                creationTime = SSL.getTime(ssl);
+            }
+            return creationTime * 1000L;
         }
 
         @Override
@@ -1140,19 +1191,22 @@ public final class OpenSSLEngine extends SSLEngine implements SSLUtil.ProtocolIn
             // these are lazy created to reduce memory overhead
             Certificate[] c = peerCerts;
             if (c == null) {
-                if (SSL.isInInit(ssl) != 0) {
-                    throw new SSLPeerUnverifiedException(sm.getString("engine.unverifiedPeer"));
-                }
-                byte[][] chain = SSL.getPeerCertChain(ssl);
                 byte[] clientCert;
-                if (!clientMode) {
-                    // if used on the server side SSL_get_peer_cert_chain(...) will not include the remote peer certificate.
-                    // We use SSL_get_peer_certificate to get it in this case and add it to our array later.
-                    //
-                    // See https://www.openssl.org/docs/ssl/SSL_get_peer_cert_chain.html
-                    clientCert = SSL.getPeerCertificate(ssl);
-                } else {
-                    clientCert = null;
+                byte[][] chain;
+                synchronized (OpenSSLEngine.this) {
+                    if (destroyed || SSL.isInInit(ssl) != 0) {
+                        throw new SSLPeerUnverifiedException(sm.getString("engine.unverifiedPeer"));
+                    }
+                    chain = SSL.getPeerCertChain(ssl);
+                    if (!clientMode) {
+                        // if used on the server side SSL_get_peer_cert_chain(...) will not include the remote peer certificate.
+                        // We use SSL_get_peer_certificate to get it in this case and add it to our array later.
+                        //
+                        // See https://www.openssl.org/docs/ssl/SSL_get_peer_cert_chain.html
+                        clientCert = SSL.getPeerCertificate(ssl);
+                    } else {
+                        clientCert = null;
+                    }
                 }
                 if (chain == null && clientCert == null) {
                     return null;
@@ -1167,14 +1221,14 @@ public final class OpenSSLEngine extends SSLEngine implements SSLUtil.ProtocolIn
                 if (clientCert != null) {
                     len++;
                     certificates = new Certificate[len];
-                    certificates[i++] = new OpenSslX509Certificate(clientCert);
+                    certificates[i++] = new OpenSSLX509Certificate(clientCert);
                 } else {
                     certificates = new Certificate[len];
                 }
                 if (chain != null) {
                     int a = 0;
                     for (; i < certificates.length; i++) {
-                        certificates[i] = new OpenSslX509Certificate(chain[a++]);
+                        certificates[i] = new OpenSSLX509Certificate(chain[a++]);
                     }
                 }
                 c = peerCerts = certificates;
@@ -1188,23 +1242,29 @@ public final class OpenSSLEngine extends SSLEngine implements SSLUtil.ProtocolIn
             return EMPTY_CERTIFICATES;
         }
 
+        @Deprecated
         @Override
-        public X509Certificate[] getPeerCertificateChain() throws SSLPeerUnverifiedException {
+        public javax.security.cert.X509Certificate[] getPeerCertificateChain()
+                throws SSLPeerUnverifiedException {
             // these are lazy created to reduce memory overhead
-            X509Certificate[] c = x509PeerCerts;
+            javax.security.cert.X509Certificate[] c = x509PeerCerts;
             if (c == null) {
-                if (SSL.isInInit(ssl) != 0) {
-                    throw new SSLPeerUnverifiedException(sm.getString("engine.unverifiedPeer"));
+                byte[][] chain;
+                synchronized (OpenSSLEngine.this) {
+                    if (destroyed || SSL.isInInit(ssl) != 0) {
+                        throw new SSLPeerUnverifiedException(sm.getString("engine.unverifiedPeer"));
+                    }
+                    chain = SSL.getPeerCertChain(ssl);
                 }
-                byte[][] chain = SSL.getPeerCertChain(ssl);
                 if (chain == null) {
                     throw new SSLPeerUnverifiedException(sm.getString("engine.unverifiedPeer"));
                 }
-                X509Certificate[] peerCerts = new X509Certificate[chain.length];
+                javax.security.cert.X509Certificate[] peerCerts =
+                        new javax.security.cert.X509Certificate[chain.length];
                 for (int i = 0; i < peerCerts.length; i++) {
                     try {
-                        peerCerts[i] = X509Certificate.getInstance(chain[i]);
-                    } catch (CertificateException e) {
+                        peerCerts[i] = javax.security.cert.X509Certificate.getInstance(chain[i]);
+                    } catch (javax.security.cert.CertificateException e) {
                         throw new IllegalStateException(e);
                     }
                 }
@@ -1237,11 +1297,18 @@ public final class OpenSSLEngine extends SSLEngine implements SSLUtil.ProtocolIn
 
         @Override
         public String getCipherSuite() {
-            if (!handshakeFinished) {
-                return INVALID_CIPHER;
-            }
             if (cipher == null) {
-                String c = OpenSSLCipherConfigurationParser.openSSLToJsse(SSL.getCipherForSSL(ssl));
+                String ciphers;
+                synchronized (OpenSSLEngine.this) {
+                    if (!handshakeFinished) {
+                        return INVALID_CIPHER;
+                    }
+                    if (destroyed) {
+                        return INVALID_CIPHER;
+                    }
+                    ciphers = SSL.getCipherForSSL(ssl);
+                }
+                String c = OpenSSLCipherConfigurationParser.openSSLToJsse(ciphers);
                 if (c != null) {
                     cipher = c;
                 }
@@ -1253,7 +1320,12 @@ public final class OpenSSLEngine extends SSLEngine implements SSLUtil.ProtocolIn
         public String getProtocol() {
             String applicationProtocol = OpenSSLEngine.this.applicationProtocol;
             if (applicationProtocol == null) {
-                applicationProtocol = SSL.getNextProtoNegotiated(ssl);
+                synchronized (OpenSSLEngine.this) {
+                    if (destroyed) {
+                        throw new IllegalStateException(sm.getString("engine.noSession"));
+                    }
+                    applicationProtocol = SSL.getNextProtoNegotiated(ssl);
+                }
                 if (applicationProtocol == null) {
                     applicationProtocol = fallbackApplicationProtocol;
                 }
@@ -1263,7 +1335,13 @@ public final class OpenSSLEngine extends SSLEngine implements SSLUtil.ProtocolIn
                     OpenSSLEngine.this.applicationProtocol = applicationProtocol = "";
                 }
             }
-            String version = SSL.getVersion(ssl);
+            String version;
+            synchronized (OpenSSLEngine.this) {
+                if (destroyed) {
+                    throw new IllegalStateException(sm.getString("engine.noSession"));
+                }
+                version = SSL.getVersion(ssl);
+            }
             if (applicationProtocol.isEmpty()) {
                 return version;
             } else {

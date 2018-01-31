@@ -21,18 +21,20 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.security.KeyStore;
 import java.security.UnrecoverableKeyException;
-import java.util.HashMap;
+import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import javax.management.ObjectName;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.TrustManagerFactory;
 
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
+import org.apache.tomcat.util.net.openssl.OpenSSLConf;
 import org.apache.tomcat.util.net.openssl.ciphers.Cipher;
 import org.apache.tomcat.util.net.openssl.ciphers.OpenSSLCipherConfigurationParser;
 import org.apache.tomcat.util.res.StringManager;
@@ -51,12 +53,9 @@ public class SSLHostConfig implements Serializable {
     protected static final Set<String> SSL_PROTO_ALL_SET = new HashSet<>();
 
     static {
-        /* Default used if protocols is not configured, also
-           used if protocols="All" */
-        /* If protocols is configured to be empty, the effective
-           value comes from
-           org.apache.tomcat.util.net.jsse.JSSESocketFactory.defaultServerProtocols
-           (JSSE) resp. org.apache.tomcat.jni.SSL.SSL_PROTOCOL_ALL (OpenSSL)*/
+        /* Default used if protocols is not configured, also used if
+         * protocols="All"
+         */
         SSL_PROTO_ALL_SET.add(Constants.SSL_PROTO_SSLv2Hello);
         SSL_PROTO_ALL_SET.add(Constants.SSL_PROTO_TLSv1);
         SSL_PROTO_ALL_SET.add(Constants.SSL_PROTO_TLSv1_1);
@@ -65,20 +64,22 @@ public class SSLHostConfig implements Serializable {
 
     private Type configType = null;
     private Type currentConfigType = null;
-    private Map<Type,Set<String>> configuredProperties = new HashMap<>();
+    private Map<Type, Set<String>> configuredProperties = new EnumMap<>(Type.class);
 
     private String hostName = DEFAULT_SSL_HOST_NAME;
 
+    private transient Long openSslConfContext = Long.valueOf(0);
     // OpenSSL can handle multiple certs in a single config so the reference to
     // the context is here at the virtual host level. JSSE can't so the
     // reference is held on the certificate.
-    private transient Long openSslContext;
+    private transient Long openSslContext = Long.valueOf(0);
 
     // Configuration properties
 
     // Internal
     private String[] enabledCiphers;
     private String[] enabledProtocols;
+    private ObjectName oname;
     // Nested
     private SSLHostConfigCertificate defaultCertificate = null;
     private Set<SSLHostConfigCertificate> certificates = new HashSet<>(4);
@@ -113,10 +114,21 @@ public class SSLHostConfig implements Serializable {
     private boolean disableCompression = true;
     private boolean disableSessionTickets = false;
     private boolean insecureRenegotiation = false;
+    private OpenSSLConf openSslConf = null;
 
     public SSLHostConfig() {
         // Set defaults that can't be (easily) set when defining the fields.
         setProtocols(Constants.SSL_PROTO_ALL);
+    }
+
+
+    public Long getOpenSslConfContext() {
+        return openSslConfContext;
+    }
+
+
+    public void setOpenSslConfContext(Long openSslConfContext) {
+        this.openSslConfContext = openSslConfContext;
     }
 
 
@@ -188,7 +200,7 @@ public class SSLHostConfig implements Serializable {
     }
 
 
-    void setEnabledProtocols(String[] enabledProtocols) {
+    public void setEnabledProtocols(String[] enabledProtocols) {
         this.enabledProtocols = enabledProtocols;
     }
 
@@ -203,8 +215,18 @@ public class SSLHostConfig implements Serializable {
     }
 
 
-    void setEnabledCiphers(String[] enabledCiphers) {
+    public void setEnabledCiphers(String[] enabledCiphers) {
         this.enabledCiphers = enabledCiphers;
+    }
+
+
+    public ObjectName getObjectName() {
+        return oname;
+    }
+
+
+    public void setObjectName(ObjectName oname) {
+        this.oname = oname;
     }
 
 
@@ -235,6 +257,22 @@ public class SSLHostConfig implements Serializable {
         }
 
         certificates.add(certificate);
+    }
+
+
+    public OpenSSLConf getOpenSslConf() {
+        return openSslConf;
+    }
+
+
+    public void setOpenSslConf(OpenSSLConf conf) {
+        if (conf == null) {
+            throw new IllegalArgumentException(sm.getString("sslHostConfig.opensslconf.null"));
+        } else if (openSslConf != null) {
+            throw new IllegalArgumentException(sm.getString("sslHostConfig.opensslconf.alreadySet"));
+        }
+        setProperty("<OpenSSLConf>", Type.OPENSSL);
+        openSslConf = conf;
     }
 
 
@@ -277,7 +315,15 @@ public class SSLHostConfig implements Serializable {
 
 
     public void setCertificateVerification(String certificateVerification) {
-        this.certificateVerification = CertificateVerification.fromString(certificateVerification);
+        try {
+            this.certificateVerification =
+                    CertificateVerification.fromString(certificateVerification);
+        } catch (IllegalArgumentException iae) {
+            // If the specified value is not recognised, default to the
+            // strictest possible option.
+            this.certificateVerification = CertificateVerification.REQUIRED;
+            throw iae;
+        }
     }
 
 
@@ -800,14 +846,14 @@ public class SSLHostConfig implements Serializable {
 
     // ----------------------------------------------------------- Inner classes
 
-    public static enum Type {
+    public enum Type {
         JSSE,
         OPENSSL,
         EITHER
     }
 
 
-    public static enum CertificateVerification {
+    public enum CertificateVerification {
         NONE,
         OPTIONAL_NO_CA,
         OPTIONAL,

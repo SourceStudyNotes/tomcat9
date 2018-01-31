@@ -49,10 +49,10 @@ import org.apache.catalina.Session;
 import org.apache.catalina.manager.util.BaseSessionComparator;
 import org.apache.catalina.manager.util.SessionUtils;
 import org.apache.catalina.util.ContextName;
-import org.apache.catalina.util.RequestUtil;
 import org.apache.catalina.util.ServerInfo;
 import org.apache.catalina.util.URLEncoder;
 import org.apache.tomcat.util.res.StringManager;
+import org.apache.tomcat.util.security.Escape;
 
 /**
 * Servlet that enables remote management of the web applications deployed
@@ -85,6 +85,8 @@ public final class HTMLManagerServlet extends ManagerServlet {
     static final String sessionsListJspPath = "/WEB-INF/jsp/sessionsList.jsp";
     static final String sessionDetailJspPath = "/WEB-INF/jsp/sessionDetail.jsp";
     static final String connectorCiphersJspPath = "/WEB-INF/jsp/connectorCiphers.jsp";
+    static final String connectorCertsJspPath = "/WEB-INF/jsp/connectorCerts.jsp";
+    static final String connectorTrustedCertsJspPath = "/WEB-INF/jsp/connectorTrustedCerts.jsp";
 
     private boolean showProxySessions = false;
 
@@ -138,6 +140,10 @@ public final class HTMLManagerServlet extends ManagerServlet {
             }
         } else if (command.equals("/sslConnectorCiphers")) {
             sslConnectorCiphers(request, response);
+        } else if (command.equals("/sslConnectorCerts")) {
+            sslConnectorCerts(request, response);
+        } else if (command.equals("/sslConnectorTrustedCerts")) {
+            sslConnectorTrustedCerts(request, response);
         } else if (command.equals("/upload") || command.equals("/deploy") ||
                 command.equals("/reload") || command.equals("/undeploy") ||
                 command.equals("/expire") || command.equals("/start") ||
@@ -187,6 +193,7 @@ public final class HTMLManagerServlet extends ManagerServlet {
         }
         String deployConfig = request.getParameter("deployConfig");
         String deployWar = request.getParameter("deployWar");
+        String tlsHostName = request.getParameter("tlsHostName");
 
         // Prepare our output writer to generate the response message
         response.setContentType("text/html; charset=" + Constants.CHARSET);
@@ -213,6 +220,8 @@ public final class HTMLManagerServlet extends ManagerServlet {
             message = stop(cn, smClient);
         } else if (command.equals("/findleaks")) {
             message = findleaks(smClient);
+        } else if (command.equals("/sslReload")) {
+            message = sslReload(tlsHostName, smClient);
         } else {
             // Try GET
             doGet(request,response);
@@ -221,6 +230,7 @@ public final class HTMLManagerServlet extends ManagerServlet {
 
         list(request, response, message, smClient);
     }
+
 
     protected String upload(HttpServletRequest request, StringManager smClient) {
         String message = "";
@@ -349,7 +359,7 @@ public final class HTMLManagerServlet extends ManagerServlet {
         if (message == null || message.length() == 0) {
             args[1] = "OK";
         } else {
-            args[1] = RequestUtil.filter(message);
+            args[1] = Escape.htmlElementContent(message);
         }
         writer.print(MessageFormat.format(Constants.MESSAGE_SECTION, args));
 
@@ -442,19 +452,19 @@ public final class HTMLManagerServlet extends ManagerServlet {
                 args = new Object[7];
                 args[0] = "<a href=\"" +
                         URLEncoder.DEFAULT.encode(contextPath + "/", StandardCharsets.UTF_8) +
-                        "\">" + RequestUtil.filter(displayPath) + "</a>";
+                        "\">" + Escape.htmlElementContent(displayPath) + "</a>";
                 if ("".equals(ctxt.getWebappVersion())) {
                     args[1] = noVersion;
                 } else {
-                    args[1] = RequestUtil.filter(ctxt.getWebappVersion());
+                    args[1] = Escape.htmlElementContent(ctxt.getWebappVersion());
                 }
                 if (ctxt.getDisplayName() == null) {
                     args[2] = "&nbsp;";
                 } else {
-                    args[2] = RequestUtil.filter(ctxt.getDisplayName());
+                    args[2] = Escape.htmlElementContent(ctxt.getDisplayName());
                 }
                 args[3] = Boolean.valueOf(ctxt.getState().isAvailable());
-                args[4] = RequestUtil.filter(response.encodeURL(request.getContextPath() +
+                args[4] = Escape.htmlElementContent(response.encodeURL(request.getContextPath() +
                      "/html/sessions?" + pathVersion));
                 Manager manager = ctxt.getManager();
                 if (manager instanceof DistributedManager && showProxySessions) {
@@ -472,19 +482,19 @@ public final class HTMLManagerServlet extends ManagerServlet {
                     (MessageFormat.format(APPS_ROW_DETAILS_SECTION, args));
 
                 args = new Object[14];
-                args[0] = RequestUtil.filter(response.encodeURL(request
+                args[0] = Escape.htmlElementContent(response.encodeURL(request
                         .getContextPath() + "/html/start?" + pathVersion));
                 args[1] = appsStart;
-                args[2] = RequestUtil.filter(response.encodeURL(request
+                args[2] = Escape.htmlElementContent(response.encodeURL(request
                         .getContextPath() + "/html/stop?" + pathVersion));
                 args[3] = appsStop;
-                args[4] = RequestUtil.filter(response.encodeURL(request
+                args[4] = Escape.htmlElementContent(response.encodeURL(request
                         .getContextPath() + "/html/reload?" + pathVersion));
                 args[5] = appsReload;
-                args[6] = RequestUtil.filter(response.encodeURL(request
+                args[6] = Escape.htmlElementContent(response.encodeURL(request
                         .getContextPath() + "/html/undeploy?" + pathVersion));
                 args[7] = appsUndeploy;
-                args[8] = RequestUtil.filter(response.encodeURL(request
+                args[8] = Escape.htmlElementContent(response.encodeURL(request
                         .getContextPath() + "/html/expire?" + pathVersion));
                 args[9] = appsExpire;
                 args[10] = smClient.getString("htmlManagerServlet.expire.explain");
@@ -534,8 +544,17 @@ public final class HTMLManagerServlet extends ManagerServlet {
         args[3] = smClient.getString("htmlManagerServlet.deployButton");
         writer.print(MessageFormat.format(UPLOAD_SECTION, args));
 
+        // Config section
+        args = new Object[5];
+        args[0] = smClient.getString("htmlManagerServlet.configTitle");
+        args[1] = smClient.getString("htmlManagerServlet.configSslReloadTitle");
+        args[2] = response.encodeURL(request.getContextPath() + "/html/sslReload");
+        args[3] = smClient.getString("htmlManagerServlet.configSslHostName");
+        args[4] = smClient.getString("htmlManagerServlet.configReloadButton");
+        writer.print(MessageFormat.format(CONFIG_SECTION, args));
+
         // Diagnostics section
-        args = new Object[9];
+        args = new Object[15];
         args[0] = smClient.getString("htmlManagerServlet.diagnosticsTitle");
         args[1] = smClient.getString("htmlManagerServlet.diagnosticsLeak");
         args[2] = response.encodeURL(
@@ -547,6 +566,14 @@ public final class HTMLManagerServlet extends ManagerServlet {
                 request.getContextPath() + "/html/sslConnectorCiphers");
         args[7] = smClient.getString("htmlManagerServlet.diagnosticsSslConnectorCipherButton");
         args[8] = smClient.getString("htmlManagerServlet.diagnosticsSslConnectorCipherText");
+        args[9] = response.encodeURL(
+                request.getContextPath() + "/html/sslConnectorCerts");
+        args[10] = smClient.getString("htmlManagerServlet.diagnosticsSslConnectorCertsButton");
+        args[11] = smClient.getString("htmlManagerServlet.diagnosticsSslConnectorCertsText");
+        args[12] = response.encodeURL(
+                request.getContextPath() + "/html/sslConnectorTrustedCerts");
+        args[13] = smClient.getString("htmlManagerServlet.diagnosticsSslConnectorTrustedCertsButton");
+        args[14] = smClient.getString("htmlManagerServlet.diagnosticsSslConnectorTrustedCertsText");
         writer.print(MessageFormat.format(DIAGNOSTICS_SECTION, args));
 
         // Server Header Section
@@ -720,6 +747,16 @@ public final class HTMLManagerServlet extends ManagerServlet {
     }
 
 
+    protected String sslReload(String tlsHostName, StringManager smClient) {
+        StringWriter stringWriter = new StringWriter();
+        PrintWriter printWriter = new PrintWriter(stringWriter);
+
+        super.sslReload(printWriter, tlsHostName, smClient);
+
+        return stringWriter.toString();
+    }
+
+
     protected void sslConnectorCiphers(HttpServletRequest request,
             HttpServletResponse response) throws ServletException, IOException {
         request.setAttribute("cipherList", getConnectorCiphers());
@@ -727,12 +764,29 @@ public final class HTMLManagerServlet extends ManagerServlet {
                 connectorCiphersJspPath).forward(request, response);
     }
 
+
+    protected void sslConnectorCerts(HttpServletRequest request,
+            HttpServletResponse response) throws ServletException, IOException {
+        request.setAttribute("certList", getConnectorCerts());
+        getServletContext().getRequestDispatcher(
+                connectorCertsJspPath).forward(request, response);
+    }
+
+
+    protected void sslConnectorTrustedCerts(HttpServletRequest request,
+            HttpServletResponse response) throws ServletException, IOException {
+        request.setAttribute("trustedCertList", getConnectorTrustedCerts());
+        getServletContext().getRequestDispatcher(
+                connectorTrustedCertsJspPath).forward(request, response);
+    }
+
+
     /**
      * @see javax.servlet.Servlet#getServletInfo()
      */
     @Override
     public String getServletInfo() {
-        return "HTMLManagerServlet, Copyright (c) 1999-2017, The Apache Software Foundation";
+        return "HTMLManagerServlet, Copyright (c) 1999-2018, The Apache Software Foundation";
     }
 
     /**
@@ -824,14 +878,14 @@ public final class HTMLManagerServlet extends ManagerServlet {
             }
             throw new IllegalArgumentException(smClient.getString(
                     "managerServlet.invalidPath",
-                    RequestUtil.filter(path)));
+                    Escape.htmlElementContent(path)));
         }
 
         Context ctxt = (Context) host.findChild(cn.getName());
         if (null == ctxt) {
             throw new IllegalArgumentException(smClient.getString(
                     "managerServlet.noContext",
-                    RequestUtil.filter(cn.getDisplayName())));
+                    Escape.htmlElementContent(cn.getDisplayName())));
         }
         Manager manager = ctxt.getManager();
         List<Session> sessions = new ArrayList<>();
@@ -1287,11 +1341,12 @@ public final class HTMLManagerServlet extends ManagerServlet {
         "<br>\n" +
         "\n";
 
-    private static final String DIAGNOSTICS_SECTION =
+    private static final String CONFIG_SECTION =
         "<table border=\"1\" cellspacing=\"0\" cellpadding=\"3\">\n" +
         "<tr>\n" +
         " <td colspan=\"2\" class=\"title\">{0}</td>\n" +
         "</tr>\n" +
+
         "<tr>\n" +
         " <td colspan=\"2\" class=\"header-left\"><small>{1}</small></td>\n" +
         "</tr>\n" +
@@ -1300,36 +1355,87 @@ public final class HTMLManagerServlet extends ManagerServlet {
         "<form method=\"post\" action=\"{2}\">\n" +
         "<table cellspacing=\"0\" cellpadding=\"3\">\n" +
         "<tr>\n" +
+        " <td class=\"row-right\">\n" +
+        "  <small>{3}</small>\n" +
+        " </td>\n" +
+        " <td class=\"row-left\">\n" +
+        "  <input type=\"text\" name=\"tlsHostName\" size=\"20\">\n" +
+        " </td>\n" +
+        "</tr>\n" +
+        "<tr>\n" +
+        " <td class=\"row-right\">\n" +
+        "  &nbsp;\n" +
+        " </td>\n" +
         " <td class=\"row-left\">\n" +
         "  <input type=\"submit\" value=\"{4}\">\n" +
+        " </td>\n" +
+        "</tr>\n" +
+        "</table>\n" +
+        "</form>\n" +
+        "</td>\n" +
+        "</tr>\n" +
+
+        "</table>\n" +
+        "<br>";
+
+    private static final String DIAGNOSTICS_SECTION =
+        "<table border=\"1\" cellspacing=\"0\" cellpadding=\"3\">\n" +
+        "<tr>\n" +
+        " <td colspan=\"2\" class=\"title\">{0}</td>\n" +
+        "</tr>\n" +
+
+        "<tr>\n" +
+        " <td colspan=\"2\" class=\"header-left\"><small>{1}</small></td>\n" +
+        "</tr>\n" +
+
+        "<tr>\n" +
+        " <td class=\"row-left\">\n" +
+        "  <form method=\"post\" action=\"{2}\">\n" +
+        "   <input type=\"submit\" value=\"{4}\">\n" +
+        "  </form>\n" +
         " </td>\n" +
         " <td class=\"row-left\">\n" +
         "  <small>{3}</small>\n" +
         " </td>\n" +
         "</tr>\n" +
-        "</table>\n" +
-        "</form>\n" +
-        "</td>\n" +
-        "</tr>\n" +
+
         "<tr>\n" +
         " <td colspan=\"2\" class=\"header-left\"><small>{5}</small></td>\n" +
         "</tr>\n" +
-        "<tr>\n" +
-        " <td colspan=\"2\">\n" +
-        "<form method=\"post\" action=\"{6}\">\n" +
-        "<table cellspacing=\"0\" cellpadding=\"3\">\n" +
+
         "<tr>\n" +
         " <td class=\"row-left\">\n" +
-        "  <input type=\"submit\" value=\"{7}\">\n" +
+        "  <form method=\"post\" action=\"{6}\">\n" +
+        "   <input type=\"submit\" value=\"{7}\">\n" +
+        "  </form>\n" +
         " </td>\n" +
         " <td class=\"row-left\">\n" +
         "  <small>{8}</small>\n" +
         " </td>\n" +
         "</tr>\n" +
-        "</table>\n" +
-        "</form>\n" +
-        "</td>\n" +
+
+        "<tr>\n" +
+        " <td class=\"row-left\">\n" +
+        "  <form method=\"post\" action=\"{9}\">\n" +
+        "   <input type=\"submit\" value=\"{10}\">\n" +
+        "  </form>\n" +
+        " </td>\n" +
+        " <td class=\"row-left\">\n" +
+        "  <small>{11}</small>\n" +
+        " </td>\n" +
         "</tr>\n" +
+
+        "<tr>\n" +
+        " <td class=\"row-left\">\n" +
+        "  <form method=\"post\" action=\"{12}\">\n" +
+        "   <input type=\"submit\" value=\"{13}\">\n" +
+        "  </form>\n" +
+        " </td>\n" +
+        " <td class=\"row-left\">\n" +
+        "  <small>{14}</small>\n" +
+        " </td>\n" +
+        "</tr>\n" +
+
         "</table>\n" +
         "<br>";
 }

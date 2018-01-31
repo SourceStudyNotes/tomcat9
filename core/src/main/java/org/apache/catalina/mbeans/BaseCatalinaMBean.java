@@ -25,11 +25,6 @@ import org.apache.tomcat.util.modeler.BaseModelMBean;
 
 public abstract class BaseCatalinaMBean<T> extends BaseModelMBean {
 
-    protected BaseCatalinaMBean() throws MBeanException, RuntimeOperationsException {
-        super();
-    }
-
-
     protected T doGetManagedResource() throws MBeanException {
         try {
             @SuppressWarnings("unchecked")
@@ -44,8 +39,8 @@ public abstract class BaseCatalinaMBean<T> extends BaseModelMBean {
 
     protected static Object newInstance(String type) throws MBeanException {
         try {
-            return Class.forName(type).newInstance();
-        } catch (InstantiationException | IllegalAccessException | ClassNotFoundException e) {
+            return Class.forName(type).getConstructor().newInstance();
+        } catch (ReflectiveOperationException e) {
             throw new MBeanException(e);
         }
     }

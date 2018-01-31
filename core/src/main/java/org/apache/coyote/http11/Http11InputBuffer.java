@@ -20,6 +20,7 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 
 import org.apache.coyote.InputBuffer;
 import org.apache.coyote.Request;
@@ -62,6 +63,8 @@ public class Http11InputBuffer implements InputBuffer, ApplicationBufferHandler 
      */
     private final MimeHeaders headers;
 
+
+    private final boolean rejectIllegalHeaderName;
 
     /**
      * State.
@@ -145,12 +148,14 @@ public class Http11InputBuffer implements InputBuffer, ApplicationBufferHandler 
 
     // ----------------------------------------------------------- Constructors
 
-    public Http11InputBuffer(Request request, int headerBufferSize) {
+    public Http11InputBuffer(Request request, int headerBufferSize,
+            boolean rejectIllegalHeaderName) {
 
         this.request = request;
         headers = request.getMimeHeaders();
 
         this.headerBufferSize = headerBufferSize;
+        this.rejectIllegalHeaderName = rejectIllegalHeaderName;
 
         filterLibrary = new InputFilter[0];
         activeFilters = new InputFilter[0];
@@ -182,10 +187,7 @@ public class Http11InputBuffer implements InputBuffer, ApplicationBufferHandler 
             throw new NullPointerException(sm.getString("iib.filter.npe"));
         }
 
-        InputFilter[] newFilterLibrary = new InputFilter[filterLibrary.length + 1];
-        for (int i = 0; i < filterLibrary.length; i++) {
-            newFilterLibrary[i] = filterLibrary[i];
-        }
+        InputFilter[] newFilterLibrary = Arrays.copyOf(filterLibrary, filterLibrary.length + 1);
         newFilterLibrary[filterLibrary.length] = filter;
         filterLibrary = newFilterLibrary;
 
@@ -658,6 +660,16 @@ public class Http11InputBuffer implements InputBuffer, ApplicationBufferHandler 
     }
 
 
+    boolean isChunking() {
+        for (int i = 0; i < lastActiveFilter; i++) {
+            if (activeFilters[i] == filterLibrary[Constants.CHUNKED_FILTER]) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+
     void init(SocketWrapperBase<?> socketWrapper) {
 
         wrapper = socketWrapper;
@@ -778,10 +790,11 @@ public class Http11InputBuffer implements InputBuffer, ApplicationBufferHandler 
                 headerData.lastSignificantChar = pos;
                 break;
             } else if (!HttpParser.isToken(chr)) {
-                // If a non-token header is detected, skip the line and
-                // ignore the header
+                // Non-token characters are illegal in header names
+                // Parsing continues so the error can be reported in context
                 headerData.lastSignificantChar = pos;
                 byteBuffer.position(byteBuffer.position() - 1);
+                // skipLine() will handle the error
                 return skipLine();
             }
 
@@ -913,11 +926,15 @@ public class Http11InputBuffer implements InputBuffer, ApplicationBufferHandler 
                 headerData.lastSignificantChar = pos;
             }
         }
-        if (log.isDebugEnabled()) {
-            log.debug(sm.getString("iib.invalidheader",
+        if (rejectIllegalHeaderName || log.isDebugEnabled()) {
+            String message = sm.getString("iib.invalidheader",
                     new String(byteBuffer.array(), headerData.start,
                             headerData.lastSignificantChar - headerData.start + 1,
-                            StandardCharsets.ISO_8859_1)));
+                            StandardCharsets.ISO_8859_1));
+            if (rejectIllegalHeaderName) {
+                throw new IllegalArgumentException(message);
+            }
+            log.debug(message);
         }
 
         headerParsePos = HeaderParsePosition.HEADER_START;
@@ -927,12 +944,12 @@ public class Http11InputBuffer implements InputBuffer, ApplicationBufferHandler 
 
     // ----------------------------------------------------------- Inner classes
 
-    private static enum HeaderParseStatus {
+    private enum HeaderParseStatus {
         DONE, HAVE_MORE_HEADERS, NEED_MORE_DATA
     }
 
 
-    private static enum HeaderParsePosition {
+    private enum HeaderParsePosition {
         /**
          * Start of a new header. A CRLF here means that there are no more
          * headers. Any other character starts a header name.

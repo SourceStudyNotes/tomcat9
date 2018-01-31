@@ -6,7 +6,7 @@
     <artifactId>tomcat</artifactId>
     <version>9.0.4</version>
     <packaging>pom</packaging>
-    <name>Tomcat-9.0.4</name>
+    <name>tomcat-9.0.4</name>
     <url>http://maven.apache.org</url>
 
     <properties>

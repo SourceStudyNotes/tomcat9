@@ -121,17 +121,12 @@ final class PersistentProviderRegistrations {
                     "    xsi:schemaLocation=\"http://tomcat.apache.org/xml jaspic-providers.xsd\"\n" +
                     "    version=\"1.0\">\n");
             for (Provider provider : providers.providers) {
-                writer.write("  <provider className=\"");
-                writer.write(provider.getClassName());
-                writer.write("\" layer=\"");
-                writer.write(provider.getLayer());
-                writer.write("\" appContext=\"");
-                writer.write(provider.getAppContext());
-                if (provider.getDescription() != null) {
-                    writer.write("\" description=\"");
-                    writer.write(provider.getDescription());
-                }
-                writer.write("\">\n");
+                writer.write("  <provider");
+                writeOptional("className", provider.getClassName(), writer);
+                writeOptional("layer", provider.getLayer(), writer);
+                writeOptional("appContext", provider.getAppContext(), writer);
+                writeOptional("description", provider.getDescription(), writer);
+                writer.write(">\n");
                 for (Entry<String,String> entry : provider.getProperties().entrySet()) {
                     writer.write("    <property name=\"");
                     writer.write(entry.getKey());
@@ -143,7 +138,10 @@ final class PersistentProviderRegistrations {
             }
             writer.write("</jaspic-providers>\n");
         } catch (IOException e) {
-            configFileNew.delete();
+            if (!configFileNew.delete()) {
+                log.warn(sm.getString("persistentProviderRegistrations.deleteFail",
+                        configFileNew.getAbsolutePath()));
+            }
             throw new SecurityException(e);
         }
 
@@ -165,6 +163,15 @@ final class PersistentProviderRegistrations {
         if (configFileOld.exists() && !configFileOld.delete()) {
             log.warn(sm.getString("persistentProviderRegistrations.deleteFail",
                     configFileOld.getAbsolutePath()));
+        }
+    }
+
+
+    private static void writeOptional(String name, String value, Writer writer) throws IOException {
+        if (value != null) {
+            writer.write(" " + name + "=\"");
+            writer.write(value);
+            writer.write("\"");
         }
     }
 

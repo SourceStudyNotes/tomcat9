@@ -74,6 +74,7 @@ public final class SecurityClassLoad {
     private static final void loadLoaderPackage(ClassLoader loader) throws Exception {
         final String basePackage = "org.apache.catalina.loader.";
         loader.loadClass(basePackage + "WebappClassLoaderBase$PrivilegedFindClassByName");
+        loader.loadClass(basePackage + "WebappClassLoaderBase$PrivilegedHasLoggingConfig");
     }
 
 
@@ -106,6 +107,7 @@ public final class SecurityClassLoad {
         final String basePackage = "org.apache.catalina.util.";
         loader.loadClass(basePackage + "ParameterMap");
         loader.loadClass(basePackage + "RequestUtil");
+        loader.loadClass(basePackage + "TLSUtil");
     }
 
 
@@ -114,7 +116,7 @@ public final class SecurityClassLoad {
         loader.loadClass(basePackage + "http11.Constants");
         // Make sure system property is read at this point
         Class<?> clazz = loader.loadClass(basePackage + "Constants");
-        clazz.newInstance();
+        clazz.getConstructor().newInstance();
         loader.loadClass(basePackage + "http2.Stream$PrivilegedPush");
     }
 
@@ -177,7 +179,7 @@ public final class SecurityClassLoad {
         loader.loadClass(basePackage + "util.http.NamesEnumerator");
         // Make sure system property is read at this point
         Class<?> clazz = loader.loadClass(basePackage + "util.http.FastHttpDateFormat");
-        clazz.newInstance();
+        clazz.getConstructor().newInstance();
         loader.loadClass(basePackage + "util.http.parser.HttpParser");
         loader.loadClass(basePackage + "util.http.parser.MediaType");
         loader.loadClass(basePackage + "util.http.parser.MediaTypeCache");

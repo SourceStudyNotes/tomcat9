@@ -131,6 +131,10 @@ public final class Request {
     private long contentLength = -1;
     private MessageBytes contentTypeMB = null;
     private Charset charset = null;
+    // Retain the original, user specified character encoding so it can be
+    // returned even if it is invalid
+    private String characterEncoding = null;
+
     /**
      * Is there an expectation ?
      */
@@ -194,6 +198,13 @@ public final class Request {
 
     public MimeHeaders getMimeHeaders() {
         return headers;
+    }
+
+
+    public boolean isTrailerFieldsReady() {
+        AtomicBoolean result = new AtomicBoolean(false);
+        action(ActionCode.IS_TRAILER_FIELDS_READY, result);
+        return result.get();
     }
 
 
@@ -294,12 +305,32 @@ public final class Request {
      *         call has been made to that method try to obtain if from the
      *         content type.
      */
-    public Charset getCharset() {
-        if (charset != null) {
-            return charset;
+    public String getCharacterEncoding() {
+        if (characterEncoding == null) {
+            characterEncoding = getCharsetFromContentType(getContentType());
         }
 
-        charset = getCharsetFromContentType(getContentType());
+        return characterEncoding;
+    }
+
+
+    /**
+     * Get the character encoding used for this request.
+     *
+     * @return The value set via {@link #setCharset(Charset)} or if no
+     *         call has been made to that method try to obtain if from the
+     *         content type.
+     *
+     * @throws UnsupportedEncodingException If the user agent has specified an
+     *         invalid character encoding
+     */
+    public Charset getCharset() throws UnsupportedEncodingException {
+        if (charset == null) {
+            getCharacterEncoding();
+            if (characterEncoding != null) {
+                charset = B2CConverter.getCharset(characterEncoding);
+            }
+         }
 
         return charset;
     }
@@ -307,6 +338,7 @@ public final class Request {
 
     public void setCharset(Charset charset) {
         this.charset = charset;
+        this.characterEncoding = charset.name();
     }
 
 
@@ -579,6 +611,7 @@ public final class Request {
         contentLength = -1;
         contentTypeMB = null;
         charset = null;
+        characterEncoding = null;
         expectation = false;
         headers.recycle();
         trailerFields.clear();
@@ -640,7 +673,7 @@ public final class Request {
      *
      * @param contentType a content type header
      */
-    private static Charset getCharsetFromContentType(String contentType) {
+    private static String getCharsetFromContentType(String contentType) {
 
         if (contentType == null) {
             return null;
@@ -660,15 +693,6 @@ public final class Request {
             encoding = encoding.substring(1, encoding.length() - 1);
         }
 
-        Charset result = null;
-
-        try {
-            result = B2CConverter.getCharset(encoding.trim());
-        } catch (UnsupportedEncodingException e) {
-            // Ignore
-        }
-
-        return result;
+        return encoding.trim();
     }
-
 }

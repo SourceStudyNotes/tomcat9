@@ -143,7 +143,7 @@ public class NioEndpoint extends AbstractJsseEndpoint<NioChannel,SocketChannel> 
     public void setSelectorTimeout(long timeout){ this.selectorTimeout = timeout;}
     public long getSelectorTimeout(){ return this.selectorTimeout; }
     /**
-     * The socket poller.
+     * The socket pollers.
      */
     private Poller[] pollers = null;
     private AtomicInteger pollerRotater = new AtomicInteger(0);
@@ -199,12 +199,7 @@ public class NioEndpoint extends AbstractJsseEndpoint<NioChannel,SocketChannel> 
      */
     @Override
     public void bind() throws Exception {
-
-        serverSock = ServerSocketChannel.open();
-        socketProperties.setProperties(serverSock.socket());
-        InetSocketAddress addr = (getAddress()!=null?new InetSocketAddress(getAddress(),getPort()):new InetSocketAddress(getPort()));
-        serverSock.socket().bind(addr,getAcceptCount());
-        serverSock.configureBlocking(true); //mimic APR behavior
+        initServerSocket();
 
         // Initialize thread count defaults for acceptor, poller
         if (acceptorThreadCount == 0) {
@@ -222,6 +217,17 @@ public class NioEndpoint extends AbstractJsseEndpoint<NioChannel,SocketChannel> 
 
         selectorPool.open();
     }
+
+    // Separated out to make it easier for folks that extend NioEndpoint to
+    // implement custom [server]sockets
+    protected void initServerSocket() throws Exception {
+        serverSock = ServerSocketChannel.open();
+        socketProperties.setProperties(serverSock.socket());
+        InetSocketAddress addr = (getAddress()!=null?new InetSocketAddress(getAddress(),getPort()):new InetSocketAddress(getPort()));
+        serverSock.socket().bind(addr,getAcceptCount());
+        serverSock.configureBlocking(true); //mimic APR behavior
+    }
+
 
     /**
      * Start the NIO endpoint, creating acceptor, poller threads.
@@ -278,15 +284,17 @@ public class NioEndpoint extends AbstractJsseEndpoint<NioChannel,SocketChannel> 
                 pollers[i] = null;
             }
             try {
-                getStopLatch().await(selectorTimeout + 100, TimeUnit.MILLISECONDS);
-            } catch (InterruptedException ignore) {
+                if (!getStopLatch().await(selectorTimeout + 100, TimeUnit.MILLISECONDS)) {
+                    log.warn(sm.getString("endpoint.nio.stopLatchAwaitFail"));
+                }
+            } catch (InterruptedException e) {
+                log.warn(sm.getString("endpoint.nio.stopLatchAwaitInterrupted"), e);
             }
             shutdownExecutor();
             eventCache.clear();
             nioChannels.clear();
             processorCache.clear();
         }
-
     }
 
 
@@ -587,7 +595,7 @@ public class NioEndpoint extends AbstractJsseEndpoint<NioChannel,SocketChannel> 
             boolean result = false;
 
             PollerEvent pe = null;
-            while ( (pe = events.poll()) != null ) {
+            for (int i = 0, size = events.size(); i < size && (pe = events.poll()) != null; i++ ) {
                 result = true;
                 try {
                     pe.run();
@@ -635,6 +643,22 @@ public class NioEndpoint extends AbstractJsseEndpoint<NioChannel,SocketChannel> 
                     getHandler().release(ka);
                 }
                 if (key.isValid()) key.cancel();
+                // If it is available, close the NioChannel first which should
+                // in turn close the underlying SocketChannel. The NioChannel
+                // needs to be closed first, if available, to ensure that TLS
+                // connections are shut down cleanly.
+                if (ka != null) {
+                    try {
+                        ka.getSocket().close(true);
+                    } catch (Exception e){
+                        if (log.isDebugEnabled()) {
+                            log.debug(sm.getString(
+                                    "endpoint.debug.socketCloseFail"), e);
+                        }
+                    }
+                }
+                // The SocketChannel is also available via the SelectionKey. If
+                // it hasn't been closed in the block above, close it now.
                 if (key.channel().isOpen()) {
                     try {
                         key.channel().close();
@@ -643,16 +667,6 @@ public class NioEndpoint extends AbstractJsseEndpoint<NioChannel,SocketChannel> 
                             log.debug(sm.getString(
                                     "endpoint.debug.channelCloseFail"), e);
                         }
-                    }
-                }
-                try {
-                    if (ka!=null) {
-                        ka.getSocket().close(true);
-                    }
-                } catch (Exception e){
-                    if (log.isDebugEnabled()) {
-                        log.debug(sm.getString(
-                                "endpoint.debug.socketCloseFail"), e);
                     }
                 }
                 try {
@@ -904,9 +918,9 @@ public class NioEndpoint extends AbstractJsseEndpoint<NioChannel,SocketChannel> 
             // timeouts on every loop of the Poller since that would create too
             // much load and timeouts can afford to wait a few seconds.
             // However, do process timeouts if any of the following are true:
-            // 1.the selector simply timed out (suggests there isn't much load)
-            // 2.the nextExpiration time has passed
-            // 3.the server socket is being closed
+            // - the selector simply timed out (suggests there isn't much load)
+            // - the nextExpiration time has passed
+            // - the server socket is being closed
             if (nextExpiration > 0 && (keyCount > 0 || hasEvents) && (now < nextExpiration) && !close) {
                 return;
             }
@@ -955,7 +969,6 @@ public class NioEndpoint extends AbstractJsseEndpoint<NioChannel,SocketChannel> 
                 // See https://bz.apache.org/bugzilla/show_bug.cgi?id=57943
                 log.warn(sm.getString("endpoint.nio.timeoutCme"), cme);
             }
-            //不同时间加入的连接，使用一个时间段做处理，会有超时不准确的问题和时间轮那种动态调整的还是不一样。
             long prevExp = nextExpiration; //for logging purposes only
             nextExpiration = System.currentTimeMillis() +
                     socketProperties.getTimeoutInterval();
@@ -1286,18 +1299,14 @@ public class NioEndpoint extends AbstractJsseEndpoint<NioChannel,SocketChannel> 
 
 
         @Override
-        public void doClientAuth(SSLSupport sslSupport) {
+        public void doClientAuth(SSLSupport sslSupport) throws IOException {
             SecureNioChannel sslChannel = (SecureNioChannel) getSocket();
             SSLEngine engine = sslChannel.getSslEngine();
             if (!engine.getNeedClientAuth()) {
                 // Need to re-negotiate SSL connection
                 engine.setNeedClientAuth(true);
-                try {
-                    sslChannel.rehandshake(getEndpoint().getConnectionTimeout());
-                    ((JSSESupport) sslSupport).setSession(engine.getSession());
-                } catch (IOException ioe) {
-                    log.warn(sm.getString("socket.sslreneg",ioe));
-                }
+                sslChannel.rehandshake(getEndpoint().getConnectionTimeout());
+                ((JSSESupport) sslSupport).setSession(engine.getSession());
             }
         }
 

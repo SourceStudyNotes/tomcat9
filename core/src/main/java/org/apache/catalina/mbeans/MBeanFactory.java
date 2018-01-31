@@ -247,7 +247,7 @@ public class MBeanFactory {
             oname = ((JmxEnabled) realm).getObjectName();
         }
         if (oname != null) {
-            return (oname.toString());
+            return oname.toString();
         } else {
             return null;
         }
@@ -303,7 +303,7 @@ public class MBeanFactory {
         // Return the corresponding MBean name
         ObjectName coname = retobj.getObjectName();
 
-        return (coname.toString());
+        return coname.toString();
     }
 
 
@@ -515,7 +515,7 @@ public class MBeanFactory {
         engine.addChild(host);
 
         // Return the corresponding MBean name
-        return (host.getObjectName().toString());
+        return host.getObjectName().toString();
 
     }
 
@@ -576,7 +576,7 @@ public class MBeanFactory {
         }
         ObjectName oname = manager.getObjectName();
         if (oname != null) {
-            return (oname.toString());
+            return oname.toString();
         } else {
             return null;
         }
@@ -631,7 +631,7 @@ public class MBeanFactory {
             throw new IllegalArgumentException();
         }
 
-        Valve valve = (Valve) Class.forName(className).newInstance();
+        Valve valve = (Valve) Class.forName(className).getConstructor().newInstance();
 
         container.getPipeline().addValve(valve);
 
@@ -667,7 +667,7 @@ public class MBeanFactory {
         //ObjectName oname = loader.getObjectName();
         ObjectName oname =
             MBeanUtils.createObjectName(pname.getDomain(), loader);
-        return (oname.toString());
+        return oname.toString();
 
     }
 
@@ -752,7 +752,7 @@ public class MBeanFactory {
             host.removeChild(context);
             if(context instanceof StandardContext)
             try {
-                ((StandardContext)context).destroy();
+                context.destroy();
             } catch (Exception e) {
                 log.warn("Error during context [" + context.getName() + "] destroy ", e);
            }
