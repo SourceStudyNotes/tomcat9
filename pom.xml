@@ -2,12 +2,10 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-
     <groupId>org.apache</groupId>
     <artifactId>tomcat</artifactId>
     <version>9.0.0.M21</version>
-    <packaging>jar</packaging>
-
+    <packaging>pom</packaging>
     <name>Tomcat-9.0.0.M21</name>
     <url>http://maven.apache.org</url>
 
@@ -19,10 +17,14 @@
         <VERSION_BUILT>${maven.build.timestamp}</VERSION_BUILT>
     </properties>
 
+    <modules>
+        <module>transport</module>
+        <module>core</module>
+        <module>all</module>
+    </modules>
 
     <build>
         <finalName>tomcat</finalName>
-
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

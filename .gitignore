@@ -1,6 +1,6 @@
 /tomcat.iml
 *.class
-target/*
+*/target/*
 .idea/*
 output/logs/*
 output/work/*
